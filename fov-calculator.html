@@ -1,0 +1,1909 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FOV Calculator · Master Stellarium</title>
+<link rel="stylesheet" href="https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.css">
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;overflow:hidden}body{margin:0;display:flex;flex-direction:column;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#090d13;color:#edf3fb}
+header{padding:14px 18px;background:#101722;border-bottom:1px solid #293548;display:flex;align-items:center;justify-content:space-between;gap:16px}
+header h1{margin:0 0 4px;font-size:19px}
+header p{margin:0;color:#aeb9ca;font-size:13px}.headerText{min-width:0}.locationBox{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}.locationBox button{width:auto;white-space:nowrap;padding:8px 12px}.locationStatus{font-size:11px;color:#aeb9ca;max-width:300px;text-align:right}.homeLink{color:#cbd5e3;text-decoration:none;font-size:12px;white-space:nowrap}.homeLink:hover{color:#fff}
+.configInsight{flex:1;max-width:820px;display:grid;grid-template-columns:repeat(6,minmax(76px,1fr));gap:5px;padding:6px;border:1px solid #293548;border-radius:10px;background:#0b121d}
+.insightItem{min-width:0;padding:3px 6px;border-right:1px solid #263348}
+.insightItem:last-child{border-right:0}
+.insightItem span{display:block;color:#8190a5;font-size:9px;letter-spacing:.045em;text-transform:uppercase;white-space:nowrap}
+.insightItem strong{display:block;margin-top:2px;color:#e8eef7;font-size:11px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.insightItem strong.good{color:#80ffad}.insightItem strong.warn{color:#ffcf70}.insightItem strong.bad{color:#ff8585}.insightItem strong.neutral{color:#aeb9ca}
+.layout{display:grid;grid-template-columns:390px minmax(0,1fr);flex:1;min-height:0;overflow:hidden}
+aside{padding:14px;background:#0c121b;border-right:1px solid #293548;overflow-y:auto;overflow-x:hidden;min-height:0;overscroll-behavior:contain}
+.viewer{position:relative;height:100%;min-height:0;overflow:hidden;overscroll-behavior:none;touch-action:none}
+#aladin-lite-div{
+  position:absolute;
+  inset:0;
+  --sky-exposure:1;
+  --sky-contrast:1;
+  --sky-saturation:1;
+}
+#aladin-lite-div canvas{
+  filter:brightness(var(--sky-exposure)) contrast(var(--sky-contrast)) saturate(var(--sky-saturation));
+}
+#constellationCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+#horizonCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
+#skyTimeBadge{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);max-width:calc(100% - 28px);padding:6px 10px;border:1px solid #40554e;border-radius:7px;background:#101b20e8;color:#dcebe4;font-size:12px;text-align:center;pointer-events:none;z-index:3}
+#timeSection label{grid-template-columns:1fr minmax(150px,1.2fr);font-size:14px}
+#timeSection .inlineCheck label{display:block;margin:0}
+#timeSection .note{font-size:12px}
+#timeSection [hidden]{display:none}
+#timeSection output{font-variant-numeric:tabular-nums}
+#overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
+/* Let the sky sit below the ground while Aladin's controls stay above it. */
+#aladin-lite-div{z-index:auto}
+#aladin-lite-div > canvas{z-index:0}
+#aladin-lite-div > :not(canvas):not(style){z-index:4}
+section{border:1px solid #293548;border-radius:10px;padding:11px;margin-bottom:11px;background:#111925}
+section h2{font-size:14px;margin:0 0 9px}
+.collapsibleSection{padding:0;overflow:clip}
+.collapsibleSection>h2{margin:0}
+.sectionToggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px;border:0;border-radius:9px;background:transparent;color:#edf3fb;font:inherit;font-size:14px;font-weight:700;text-align:left}
+.sectionToggle:hover{background:#182335}
+.sectionToggle:focus-visible{outline:2px solid #66d9ff;outline-offset:-3px}
+.sectionToggle::after{content:"▾";flex:0 0 auto;color:#9cb0ca;font-size:16px;line-height:1;transform:rotate(0deg);transition:transform .24s ease}
+.collapsibleSection.is-collapsed .sectionToggle::after{transform:rotate(-90deg)}
+.sectionCollapse{display:grid;grid-template-rows:1fr;opacity:1;transition:grid-template-rows .28s ease,opacity .2s ease}
+.sectionCollapseInner{min-height:0;overflow:hidden;padding:0 11px 11px}
+.collapsibleSection.is-collapsed .sectionCollapse{grid-template-rows:0fr;opacity:0}
+@media (prefers-reduced-motion:reduce){.sectionCollapse,.sectionToggle::after{transition:none}}
+label{display:grid;grid-template-columns:1fr 110px;gap:8px;align-items:center;margin:7px 0;font-size:12px;color:#cbd5e3}
+input,select,button{width:100%;border:1px solid #3b485d;border-radius:7px;background:#0a1018;color:#edf3fb;padding:7px 8px}
+button{cursor:pointer;background:#1a2a42}
+button:hover{background:#223955}
+.syncButton[aria-pressed="true"]{background:#176b58;border-color:#35c99b;color:#f3fffb}
+.syncButton[aria-pressed="true"]:hover{background:#1b7b65}
+.row{display:grid;grid-template-columns:1fr auto;gap:7px}
+.row button{width:auto;padding-inline:14px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.metrics{font-size:12px;line-height:1.7}
+.metric{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dotted #2e3a4d}
+.metric:last-child{border-bottom:0}
+.legend{font-size:12px;line-height:1.8}
+.swatch{display:inline-block;width:20px;height:10px;margin-right:7px;vertical-align:middle;border:2px solid}
+.note{font-size:11px;line-height:1.45;color:#aab6c6}
+.badge{display:inline-block;border:1px solid #4b5d75;border-radius:999px;padding:2px 7px;font-size:11px;color:#cbd7e7}
+.small{font-size:11px;color:#aab6c6}
+.checklist{display:grid;gap:6px;margin-top:6px}
+.listGroupTitle{margin:6px 2px 0;color:#8190a5;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.camItem{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:flex-start;background:#0d1420;border:1px solid #2d3a4d;padding:7px 8px;border-radius:8px}
+.camItem input[type=checkbox]{width:auto;margin-top:2px}
+.camName{font-size:12px;font-weight:600}
+.camSub{font-size:11px;color:#aeb9ca}
+.mono{font-variant-numeric:tabular-nums}
+.summaryList{display:grid;gap:6px;margin-top:8px}
+.summaryItem{display:flex;justify-content:space-between;gap:8px;font-size:12px;border-bottom:1px dotted #2e3a4d;padding-bottom:4px}
+.summaryItem:last-child{border-bottom:0;padding-bottom:0}
+.inlineCheck{display:flex;align-items:center;gap:8px;font-size:12px;margin:8px 0}
+.inlineCheck input{width:auto}
+.mosaicGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mosaicGrid label{display:block;margin:0;font-size:11px;color:#cbd5e3}
+.mosaicGrid input{margin-top:4px}
+.mosaicActions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}
+.compareGrid{display:grid;gap:9px}
+.compareCard{border:1px solid #2d3a4d;border-radius:9px;padding:9px;background:#0d1420}
+.compareCard.active{border-color:var(--compare-color);box-shadow:0 0 0 1px color-mix(in srgb,var(--compare-color),transparent 65%)}
+.compareHeading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
+.compareCard h3{display:flex;align-items:center;gap:7px;margin:0;font-size:12px}
+.compareDot{width:9px;height:9px;border-radius:50%;background:var(--compare-color);box-shadow:0 0 10px var(--compare-color)}
+.removeComparison{width:auto;padding:4px 8px;background:transparent;color:#aeb9ca;font-size:11px}
+.removeComparison:hover{color:#fff;background:#26364e}
+.compareActions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:9px}
+@media(max-width:1180px){header{flex-wrap:wrap}.configInsight{order:3;max-width:none;flex-basis:100%}}
+@media(max-width:960px){.layout{grid-template-columns:1fr}.viewer{height:55vh;min-height:0}.layout{grid-template-rows:minmax(0,45vh) minmax(0,55vh)}aside{border-right:0;border-bottom:1px solid #293548}}
+@media(max-width:650px){.configInsight{grid-template-columns:repeat(3,minmax(0,1fr))}.insightItem:nth-child(3){border-right:0}.insightItem strong{white-space:normal}.compareActions{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="headerText">
+    <h1>Master Stellarium</h1>
+    <p>Multi-overlay imaging, OAG, and mosaic planner.</p>
+  </div>
+  <div id="configInsight" class="configInsight" aria-live="polite">
+    <div class="insightItem"><span>Configuration</span><strong id="insightConfig">—</strong></div>
+    <div class="insightItem"><span>Image-circle fit</span><strong id="insightCircle" class="neutral">—</strong></div>
+    <div class="insightItem"><span>Effective f-ratio</span><strong id="insightFRatio">—</strong></div>
+    <div class="insightItem"><span>Image scale</span><strong id="insightScale">—</strong></div>
+    <div class="insightItem"><span>Diffraction sampling</span><strong id="insightSampling" class="neutral">—</strong></div>
+    <div class="insightItem"><span>Seeing required</span><strong id="insightSeeing">—</strong></div>
+  </div>
+  <div class="locationBox">
+    <a class="homeLink" href="index.html">← Calculators</a>
+    <button id="findLocation" type="button">Find my location</button>
+    <div id="locationStatus" class="locationStatus">Location not set</div>
+  </div>
+</header>
+
+<div class="layout">
+<aside>
+<section>
+<h2>Target and view</h2>
+<div class="row"><input id="target" placeholder="e.g., M 106"><button id="goto" type="button">Go</button></div>
+<label>Survey
+  <select id="survey">
+    <option value="">Select a sky survey…</option>
+    <option value="P/DSS2/color">DSS2 color</option>
+    <option value="P/PanSTARRS/DR1/color-z-zg-g">Pan-STARRS</option>
+    <option value="P/2MASS/color">2MASS</option>
+  </select>
+</label>
+<div class="row2">
+  <button id="fit" type="button">Fit complete OAG view</button>
+  <button id="fitMain" type="button">Fit main camera(s)</button>
+</div>
+<div class="inlineCheck"><input id="showOag" type="checkbox"><label for="showOag" style="display:inline;margin:0;color:#edf3fb">Show OAG FOV / overlays</label></div>
+<label>Manual sky FOV (°)<input id="manualFov" type="number" min="0.001" step="0.01" placeholder="e.g., 0.60"></label>
+<button id="applyFov" type="button">Apply manual FOV</button>
+<p class="note">The overlay reads Aladin’s live viewport scale, so zooming with the mouse keeps every rectangle correctly scaled.</p>
+</section>
+
+<section id="timeSection">
+<h2>Date, time and horizon</h2>
+<label>Date<input id="simulationDate" type="date" min="1900-01-01" max="2100-12-31"></label>
+<label>Local time<input id="simulationTime" type="time" step="60"></label>
+<label>Day of week<output id="simulationWeekday">—</output></label>
+<label id="timeOccurrenceRow" hidden>Repeated local time<select id="timeOccurrence" aria-label="Choose occurrence of repeated local time"></select></label>
+<p class="note" id="simulationZone"></p>
+<button id="simulationNow" type="button">Now</button>
+<p class="note" id="simulationStatus" role="status" aria-live="polite"></p>
+<div class="inlineCheck"><input id="keepHorizonPointing" type="checkbox" checked><label for="keepHorizonPointing">Keep altitude / azimuth when time changes</label></div>
+<p class="note">Turn this off to track the same celestial field. Zoom and camera rotation stay fixed in either mode.</p>
+<div class="inlineCheck"><input id="showHorizon" type="checkbox" checked><label for="showHorizon">Show ground and horizon directions</label></div>
+<label>Latitude (° N)<input id="observerLatitude" type="number" min="-90" max="90" step="any" placeholder="−90 to 90"></label>
+<label>Longitude (° E)<input id="observerLongitude" type="number" min="-180" max="180" step="any" placeholder="−180 to 180"></label>
+<button id="applyObserver" type="button">Use coordinates</button>
+<p class="note">Use “Find my location” above, or enter coordinates (south and west are negative).</p>
+<p class="note" id="horizonStatus" role="status">Set an observing location to enable the horizon.</p>
+<p class="note">Ground begins at geometric altitude 0°. Terrain, atmospheric refraction, and horizon dip are not modeled. Survey images are fixed photographs; the date controls their position relative to your horizon, not planetary motion or daylight.</p>
+</section>
+
+<section id="constellationSection">
+<h2>Constellations</h2>
+
+<div class="inlineCheck">
+  <input id="showConstellationLines" type="checkbox">
+  <label for="showConstellationLines" style="display:inline;margin:0;color:#edf3fb">Show constellation lines</label>
+</div>
+
+<div class="inlineCheck">
+  <input id="showConstellationFigures" type="checkbox">
+  <label for="showConstellationFigures" style="display:inline;margin:0;color:#edf3fb">Show transparent constellation figures</label>
+</div>
+
+<div class="inlineCheck">
+  <input id="showConstellationNames" type="checkbox">
+  <label for="showConstellationNames" style="display:inline;margin:0;color:#edf3fb">Show constellation names</label>
+</div>
+
+<label>Figure opacity
+  <input id="constellationOpacity" type="range" min="3" max="35" step="1" value="12">
+</label>
+
+<div class="metrics" style="margin-top:9px">
+  <div class="metric"><span>Overlay status</span><strong id="constellationStatus">Off</strong></div>
+</div>
+
+<p class="note">Constellation data is loaded once and rendered on a dedicated lightweight canvas. It does not alter the survey image or the camera, OAG, and mosaic overlays.</p>
+</section>
+
+<section id="appearanceSection">
+<h2>Sky-image appearance</h2>
+
+<label>Exposure
+  <input id="skyExposure" type="range" min="-3" max="3" step="0.1" value="0">
+</label>
+<label>Exposure numeric (stops)
+  <input id="skyExposureNum" type="number" min="-3" max="3" step="0.1" value="0">
+</label>
+
+<label>Contrast
+  <input id="skyContrast" type="range" min="25" max="250" step="1" value="100">
+</label>
+<label>Contrast numeric (%)
+  <input id="skyContrastNum" type="number" min="25" max="250" step="1" value="100">
+</label>
+
+<label>Saturation
+  <input id="skySaturation" type="range" min="0" max="300" step="1" value="100">
+</label>
+<label>Saturation numeric (%)
+  <input id="skySaturationNum" type="number" min="0" max="300" step="1" value="100">
+</label>
+
+<button id="resetAppearance" type="button">Reset sky appearance</button>
+
+<div class="metrics" style="margin-top:9px">
+  <div class="metric"><span>Exposure multiplier</span><strong id="exposureMultiplier">1.00×</strong></div>
+  <div class="metric"><span>Current appearance</span><strong id="appearanceSummary">0.0 EV · 100% · 100%</strong></div>
+</div>
+
+<p class="note">These controls alter only the displayed survey image. Camera, OAG, and mosaic overlays remain unchanged. Exposure uses photographic stops: +1 doubles displayed brightness and −1 halves it.</p>
+</section>
+
+<section>
+<h2>Telescope and reducer</h2>
+<label>Telescope
+  <select id="telescope"></select>
+</label>
+<label>Native focal length (mm)<input id="nativeFl" type="number" min="1" placeholder="Select or enter"></label>
+<label>Reducer preset
+  <select id="reducerPreset"></select>
+</label>
+<label>Reducer factor<input id="reducer" type="number" min="0.01" step="0.001" placeholder="e.g., 1.000"></label>
+<label>Effective focal length (mm)<input id="fl" type="number" min="1" placeholder="Calculated or custom"></label>
+<p class="note">The Apertura CarbonStar reducing coma corrector is 0.95×. Celestron’s classic SCT reducer is 0.63×; dedicated EdgeHD reducers for the 8, 9.25, 11, and 14 are 0.70×.</p>
+</section>
+
+<section id="comparisonSection">
+<h2>Compare imaging setups</h2>
+<p class="small">Add as many setups as needed. Each has an independent telescope, camera, reducer, and editable effective focal length.</p>
+<div id="comparisonList" class="compareGrid"></div>
+<div class="compareActions">
+  <button id="addComparison" type="button">Add setup</button>
+  <button id="fitComparison" type="button">Fit comparison</button>
+  <button id="clearComparison" type="button">Clear comparison</button>
+</div>
+<div id="comparisonSummary" class="summaryList"></div>
+</section>
+
+<section>
+<h2>Main imaging cameras</h2>
+<p class="small">Tick any combination to overlay multiple main-camera FOVs at the same time.</p>
+<div id="mainCameraList" class="checklist"></div>
+<div id="mainSummary" class="summaryList"></div>
+<label>Main rotation (°)<input id="mainPA" type="range" min="0" max="359" step="1" value="0"></label>
+<label>Rotation numeric (°)<input id="mainPANum" type="number" min="0" max="359" step="1" value="0"></label>
+</section>
+
+<section>
+<h2>Guide cameras</h2>
+<p class="small">Tick any combination to overlay multiple guide-camera FOVs at the same time.</p>
+<div id="guideCameraList" class="checklist"></div>
+<div id="guideSummary" class="summaryList"></div>
+</section>
+
+<section>
+<h2>OAG geometry</h2>
+
+<label>OAG preset
+  <select id="preset">
+    <option value="">Select an OAG…</option>
+    <option value="zwo">ZWO OAG</option>
+    <option value="zwol">ZWO OAG-L</option>
+    <option value="celestron">Celestron Off-Axis Guider</option>
+    <option value="custom">Custom</option>
+  </select>
+</label>
+<label>Prism width (mm)<input id="prismW" type="number" min="0" step="0.1" placeholder="Enter width"></label>
+<label>Prism height (mm)<input id="prismH" type="number" min="0" step="0.1" placeholder="Enter height"></label>
+<label>Prism-center offset (mm)<input id="offset" type="number" min="0" step="0.1" placeholder="Enter offset"></label>
+<label>OAG angle (°)<input id="oagPA" type="range" min="0" max="359" value="0"></label>
+<label>Angle numeric (°)<input id="oagPANum" type="number" min="0" max="359" value="0"></label>
+<label>Guide sensor rotation (°)<input id="guideRot" type="range" min="0" max="359" step="1" value="0"></label>
+<label>Guide rotation numeric (°)<input id="guideRotNum" type="number" min="0" max="359" step="1" value="0"></label>
+<p class="note">Preset offsets are practical planning estimates. Exact usable field can vary a bit with prism insertion depth and mechanical spacing.</p>
+</section>
+
+<section>
+<h2>Calculated geometry</h2>
+<div class="metrics">
+  <div class="metric"><span>Current effective focal length</span><strong id="flMetric"></strong></div>
+  <div class="metric"><span>Largest selected main FOV</span><strong id="mainMetric"></strong></div>
+  <div class="metric"><span>Largest selected guide FOV</span><strong id="guideMetric"></strong></div>
+  <div class="metric"><span>Prism footprint</span><strong id="prismMetric"></strong></div>
+  <div class="metric"><span>Guide-center radius</span><strong id="offsetMetric"></strong></div>
+  <div class="metric"><span>Current Aladin FOV</span><strong id="liveFov"></strong></div>
+</div>
+</section>
+
+<section class="legend">
+<h2>Overlay key</h2>
+<div><span class="swatch" style="border-color:#ffb44d"></span>Prism-delivered footprint</div>
+<div><span class="swatch" style="border-color:#d78cff;border-radius:50%"></span>Path traced by guide-field centre</div>
+<div><span class="swatch" style="border-color:#b9a6ff"></span><span id="mosaicLegend">Mosaic tiles</span></div>
+<div id="legendDynamic"></div>
+<p class="note"><span class="badge">Important</span> When OAG overlay is turned off, only the selected main imaging camera FOVs remain visible.</p>
+</section>
+
+<section id="mosaicSection">
+<h2>Mosaic planner</h2>
+
+<div class="inlineCheck">
+  <input id="showMosaic" type="checkbox">
+  <label for="showMosaic" style="display:inline;margin:0;color:#edf3fb">Show mosaic overlay</label>
+</div>
+
+<label>Mosaic camera
+  <select id="mosaicCamera"></select>
+</label>
+
+<label>Mosaic telescope
+  <select id="mosaicTelescope"></select>
+</label>
+
+<label>Mosaic reducer preset
+  <select id="mosaicReducerPreset"></select>
+</label>
+
+<label>Mosaic reducer factor
+  <input id="mosaicReducer" type="number" min="0.01" step="0.001" placeholder="e.g., 1.000">
+</label>
+
+<label>Mosaic effective focal length (mm)
+  <input id="mosaicFl" type="number" min="1" placeholder="Calculated or custom">
+</label>
+
+<div class="mosaicGrid">
+  <label>Columns
+    <input id="mosaicCols" type="number" min="1" max="20" step="1" placeholder="Columns">
+  </label>
+  <label>Rows
+    <input id="mosaicRows" type="number" min="1" max="20" step="1" placeholder="Rows">
+  </label>
+</div>
+
+<label>Horizontal overlap (%)
+  <input id="mosaicOverlapX" type="range" min="0" max="80" step="1" value="15">
+</label>
+<label>Horizontal overlap numeric (%)
+  <input id="mosaicOverlapXNum" type="number" min="0" max="80" step="1" value="15">
+</label>
+
+<label>Vertical overlap (%)
+  <input id="mosaicOverlapY" type="range" min="0" max="80" step="1" value="15">
+</label>
+<label>Vertical overlap numeric (%)
+  <input id="mosaicOverlapYNum" type="number" min="0" max="80" step="1" value="15">
+</label>
+
+<label>Mosaic rotation (°)
+  <input id="mosaicRotation" type="range" min="0" max="359" step="1" value="0">
+</label>
+<label>Mosaic rotation numeric (°)
+  <input id="mosaicRotationNum" type="number" min="0" max="359" step="1" value="0">
+</label>
+
+<button id="syncMosaicRotation" class="syncButton" type="button" aria-pressed="false">Sync with main rotation: Off</button>
+
+<div class="inlineCheck">
+  <input id="linkOverlap" type="checkbox">
+  <label for="linkOverlap" style="display:inline;margin:0;color:#edf3fb">Use the same overlap on both axes</label>
+</div>
+<div class="inlineCheck">
+  <input id="numberTiles" type="checkbox">
+  <label for="numberTiles" style="display:inline;margin:0;color:#edf3fb">Number tiles in acquisition order</label>
+</div>
+
+<div class="mosaicActions">
+  <button id="fitMosaic" type="button">Fit mosaic to view</button>
+  <button id="resetMosaic" type="button">Reset 3 × 2</button>
+</div>
+
+<div class="metrics" style="margin-top:9px">
+  <div class="metric"><span>Tile count</span><strong id="mosaicTileCount">—</strong></div>
+  <div class="metric"><span>Single-tile FOV</span><strong id="mosaicTileFov">—</strong></div>
+  <div class="metric"><span>Total mosaic span</span><strong id="mosaicTotalFov">—</strong></div>
+  <div class="metric"><span>Center spacing</span><strong id="mosaicSpacing">—</strong></div>
+  <div class="metric"><span>Effective focal length</span><strong id="mosaicFlMetric">—</strong></div>
+</div>
+<p class="note">The mosaic camera, telescope, reducer, and rotation are independent from the main imaging setup. Both remain visible together for direct comparison. Adjacent tiles overlap by the selected percentages, and numbering uses a snake pattern to minimize slew distance.</p>
+</section>
+</aside>
+
+<main class="viewer" id="viewer">
+<div id="aladin-lite-div"></div>
+<canvas id="constellationCanvas"></canvas>
+<canvas id="horizonCanvas" aria-hidden="true"></canvas>
+<svg id="overlay" preserveAspectRatio="none"><g id="graphics"></g></svg>
+<div id="skyTimeBadge" role="status" aria-live="off"></div>
+</main>
+</div>
+
+<script src="https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.js"></script>
+<script src="vendor/astronomy-2.1.19.min.js"></script>
+<script src="sky-horizon.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+
+function makeSidebarSectionsCollapsible(){
+  document.querySelectorAll("aside > section").forEach((section, index) => {
+    const heading = Array.from(section.children).find(child => child.tagName === "H2");
+    if(!heading || section.classList.contains("collapsibleSection")) return;
+
+    const title = heading.textContent.trim();
+    const panel = document.createElement("div");
+    const inner = document.createElement("div");
+    const button = document.createElement("button");
+
+    panel.className = "sectionCollapse";
+    panel.id = `sidebar-section-${index + 1}`;
+    inner.className = "sectionCollapseInner";
+
+    while(heading.nextSibling) inner.appendChild(heading.nextSibling);
+    panel.appendChild(inner);
+    section.appendChild(panel);
+
+    button.type = "button";
+    button.className = "sectionToggle";
+    button.textContent = title;
+    button.setAttribute("aria-expanded", "false");
+    button.setAttribute("aria-controls", panel.id);
+
+    heading.textContent = "";
+    heading.appendChild(button);
+    section.classList.add("collapsibleSection", "is-collapsed");
+    panel.inert = true;
+
+    button.addEventListener("click", () => {
+      const collapse = button.getAttribute("aria-expanded") === "true";
+      button.setAttribute("aria-expanded", String(!collapse));
+      section.classList.toggle("is-collapsed", collapse);
+      panel.inert = collapse;
+    });
+  });
+}
+
+const TELESCOPES = {
+  samyang135: {group:'Other optical systems', name:'Samyang 135mm f/2', fl:135, aperture:67.5, imageCircle:43.3, circleNote:'Full-frame coverage'},
+  carbonstar150: {group:'Other optical systems', name:'Apertura CarbonStar 150', fl:600, aperture:150, imageCircle:21.6, circleNote:'Native illuminated field; manufacturer recommends Micro Four Thirds', reducedImageCircles:{'0.95':28}},
+  c8: {group:'Celestron Schmidt-Cassegrain', name:'Celestron C8 Schmidt-Cassegrain', fl:2032, aperture:203.2, imageCircle:null},
+  c925: {group:'Celestron Schmidt-Cassegrain', name:'Celestron C9.25 Schmidt-Cassegrain', fl:2350, aperture:235, imageCircle:null},
+  c11: {group:'Celestron Schmidt-Cassegrain', name:'Celestron C11 Schmidt-Cassegrain', fl:2800, aperture:279.4, imageCircle:null},
+  c14: {group:'Celestron Schmidt-Cassegrain', name:'Celestron C14 Schmidt-Cassegrain', fl:3910, aperture:355.6, imageCircle:null},
+  edgehd8: {group:'Celestron EdgeHD', name:'Celestron EdgeHD 8', fl:2032, aperture:203.2, imageCircle:42, reducedImageCircles:{'0.70':26.7}},
+  edgehd925: {group:'Celestron EdgeHD', name:'Celestron EdgeHD 9.25', fl:2350, aperture:235, imageCircle:42, reducedImageCircles:{'0.70':42}},
+  edgehd11: {group:'Celestron EdgeHD', name:'Celestron EdgeHD 11', fl:2800, aperture:279.4, imageCircle:42, reducedImageCircles:{'0.70':42}},
+  edgehd14: {group:'Celestron EdgeHD', name:'Celestron EdgeHD 14', fl:3910, aperture:355.6, imageCircle:42, reducedImageCircles:{'0.70':42}},
+  pwcdk125: {group:'PlaneWave CDK', name:'PlaneWave CDK12.5 f/8', fl:2541, aperture:318, imageCircle:52, circleNote:'Manufacturer-specified corrected image circle'},
+  pwcdk14: {group:'PlaneWave CDK', name:'PlaneWave CDK14 f/7.2', fl:2563, aperture:356, imageCircle:52, circleNote:'Manufacturer specification-table image circle'},
+  pwcdk17: {group:'PlaneWave CDK', name:'PlaneWave CDK17 f/6.8', fl:2939, aperture:432, imageCircle:70, circleNote:'Manufacturer-specified corrected image circle'},
+  cdk20: {group:'PlaneWave CDK', name:'PlaneWave CDK20 f/6.8', fl:3454, aperture:508, imageCircle:52, circleNote:'Manufacturer-specified corrected image circle'},
+  pwcdk20f77: {group:'PlaneWave CDK', name:'PlaneWave CDK20 f/7.7', fl:3951, aperture:508, imageCircle:52, circleNote:'Manufacturer-specified corrected image circle'},
+  pwcdk24: {group:'PlaneWave CDK', name:'PlaneWave CDK24 f/6.5', fl:3974, aperture:610, imageCircle:70, circleNote:'Manufacturer-specified corrected image circle'},
+  pwdr280: {group:'PlaneWave DeltaRho', name:'PlaneWave DeltaRho 280 f/2.75', fl:770.6, aperture:280, imageCircle:55, circleNote:'Manufacturer-specified corrected image circle'},
+  pwdr350: {group:'PlaneWave DeltaRho', name:'PlaneWave DeltaRho 350 f/3', fl:1050, aperture:350, imageCircle:60, circleNote:'Manufacturer-specified corrected image circle'},
+  pwdr500: {group:'PlaneWave DeltaRho', name:'PlaneWave DeltaRho 500 f/3.03', fl:1537, aperture:508, imageCircle:70, circleNote:'Manufacturer-specified corrected image circle'},
+  pwcdk700: {group:'PlaneWave Observatory Systems', name:'PlaneWave CDK700 f/6.5', fl:4540, aperture:700, imageCircle:70, circleNote:'Manufacturer-specified corrected image circle'},
+  pwrc700: {group:'PlaneWave Observatory Systems', name:'PlaneWave RC700 f/12', fl:8410, aperture:700, imageCircle:null, circleNote:'No manufacturer optimized image-circle diameter published'},
+  pwcdk1000: {group:'PlaneWave Observatory Systems', name:'PlaneWave CDK1000 f/6', fl:6000, aperture:1000, imageCircle:100, circleNote:'Manufacturer-specified corrected image circle'},
+  pwrc1000: {group:'PlaneWave Observatory Systems', name:'PlaneWave RC1000 f/12.2', fl:12200, aperture:1000, imageCircle:64, circleNote:'Manufacturer-specified optimal field diameter'}
+};
+
+const REDUCER_PRESETS = [
+  {value:'1.00', name:'None / Native (1.00×)'},
+  {value:'0.95', name:'Apertura CarbonStar 0.95× Reducer/Coma Corrector'},
+  {value:'0.63', name:'Celestron f/6.3 Reducer/Corrector (0.63×)'},
+  {value:'0.70', name:'Celestron 0.7× Reducer for EdgeHD 800'},
+  {value:'0.70', name:'Celestron 0.7× Reducer for EdgeHD 925'},
+  {value:'0.70', name:'Celestron 0.7× Reducer for EdgeHD 1100'},
+  {value:'0.70', name:'Celestron 0.7× Reducer for EdgeHD 1400'}
+];
+
+const MAIN_CAMS = {
+  asi533: {group:'ZWO', name:'ZWO ASI533MM Pro', w:11.31, h:11.31, pixel:3.76, color:'#45d8ff'},
+  asi294: {group:'ZWO', name:'ZWO ASI294MM Pro', w:19.10, h:13.00, pixel:4.63, color:'#a78bfa'},
+  asi2600: {group:'ZWO', name:'ZWO ASI2600MM Pro', w:23.50, h:15.70, pixel:3.76, color:'#ff70d1'},
+  asi6200: {group:'ZWO', name:'ZWO ASI6200MM Pro', w:36.00, h:24.00, pixel:3.76, color:'#ffd166'},
+  moravianG49000: {group:'Moravian Instruments — larger than 35mm full frame', name:'Moravian Instruments G4-9000 Mark II', w:36.70, h:36.70, pixel:12.00, color:'#f59e0b'},
+  moravianG416000: {group:'Moravian Instruments — larger than 35mm full frame', name:'Moravian Instruments G4-16000 Mark II', w:36.90, h:36.90, pixel:9.00, color:'#fb7185'},
+  moravianC416000: {group:'Moravian Instruments — larger than 35mm full frame', name:'Moravian Instruments C4-16000', w:37.00, h:37.00, pixel:9.00, color:'#34d399'},
+  moravianC5100: {group:'Moravian Instruments — larger than 35mm full frame', name:'Moravian Instruments C5A/S-100M', w:43.86, h:32.90, pixel:3.76, color:'#60a5fa'},
+  moravianC5150: {group:'Moravian Instruments — larger than 35mm full frame', name:'Moravian Instruments C5A/S-150M', w:53.42, h:40.07, pixel:3.76, color:'#c084fc'}
+};
+
+const GUIDE_CAMS = {
+  asi120: {name:'ZWO ASI120MM Mini', w:4.80, h:3.60, color:'#80ff78'},
+  asi220: {name:'ZWO ASI220MM Mini', w:7.68, h:4.32, color:'#7cf3ff'},
+  asi174: {name:'ZWO ASI174MM Mini', w:11.34, h:7.13, color:'#ff6b6b'}
+};
+
+let aladin = null;
+let skySimulation = null;
+let comparisonSequence = 0;
+let activeComparisonId = null;
+let activeMainCameraKey = null;
+
+function angularDeg(mm, fl){
+  return mm > 0 && fl > 0 ? 2 * Math.atan(mm / (2 * fl)) * 180 / Math.PI : 0;
+}
+function offsetDeg(mm, fl){
+  return mm >= 0 && fl > 0 ? Math.atan(mm / fl) * 180 / Math.PI : 0;
+}
+function amin(d){ return (d * 60).toFixed(2) + "′"; }
+function rect(cx, cy, w, h, a, stroke, dash=""){
+  return `<rect x="${cx-w/2}" y="${cy-h/2}" width="${w}" height="${h}" fill="none" stroke="${stroke}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-dasharray="${dash}" transform="rotate(${a} ${cx} ${cy})"/>`;
+}
+function cross(cx, cy, stroke){
+  return `<path d="M${cx-5},${cy}H${cx+5} M${cx},${cy-5}V${cy+5}" stroke="${stroke}" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
+}
+function getLiveFov(){
+  if(!aladin) return [0.6, 0.45];
+  try{
+    const f = aladin.getFoV();
+    if(Array.isArray(f)) return [Number(f[0]), Number(f[1])];
+    const W = $("viewer").clientWidth, H = $("viewer").clientHeight;
+    return [Number(f), Number(f) * H / W];
+  }catch(e){
+    const W = $("viewer").clientWidth, H = $("viewer").clientHeight;
+    const x = +$("manualFov").value || 0.6;
+    return [x, x * H / W];
+  }
+}
+
+function buildCameraLists(){
+  const mainList = $("mainCameraList");
+  const guideList = $("guideCameraList");
+  const groups = [...new Set(Object.values(MAIN_CAMS).map(camera => camera.group))];
+  mainList.innerHTML = groups.map(group =>
+    `<div class="listGroupTitle">${group}</div>` +
+    Object.entries(MAIN_CAMS)
+      .filter(([, camera]) => camera.group === group)
+      .map(([key, cam]) => `
+        <label class="camItem">
+          <input type="checkbox" name="maincam" value="${key}">
+          <div>
+            <div class="camName" style="color:${cam.color}">${cam.name}</div>
+            <div class="camSub">${cam.w.toFixed(2)} × ${cam.h.toFixed(2)} mm · ${cam.pixel.toFixed(2)} µm pixels</div>
+          </div>
+        </label>
+      `).join('')
+  ).join('');
+  guideList.innerHTML = Object.entries(GUIDE_CAMS).map(([key, cam], i) => `
+    <label class="camItem">
+      <input type="checkbox" name="guidecam" value="${key}">
+      <div>
+        <div class="camName" style="color:${cam.color}">${cam.name}</div>
+        <div class="camSub">${cam.w.toFixed(2)} × ${cam.h.toFixed(2)} mm</div>
+      </div>
+    </label>
+  `).join('');
+}
+
+function selectedMainKeys(){
+  return [...document.querySelectorAll('input[name="maincam"]:checked')].map(el => el.value);
+}
+function selectedGuideKeys(){
+  return [...document.querySelectorAll('input[name="guidecam"]:checked')].map(el => el.value);
+}
+
+function buildMosaicCameraOptions(){
+  $("mosaicCamera").innerHTML = cameraOptionsMarkup();
+  $("mosaicCamera").value = "";
+}
+
+function buildMosaicEquipmentOptions(){
+  $("mosaicTelescope").innerHTML = telescopeOptionsMarkup();
+  $("mosaicReducerPreset").innerHTML = reducerOptionsMarkup();
+  $("mosaicTelescope").value = "";
+  $("mosaicReducerPreset").value = "";
+}
+
+function telescopeOptionsMarkup(){
+  const groups = [...new Set(Object.values(TELESCOPES).map(telescope => telescope.group))];
+  return '<option value="">Select a telescope…</option>' + groups.map(group =>
+    `<optgroup label="${group}">` +
+    Object.entries(TELESCOPES)
+      .filter(([, telescope]) => telescope.group === group)
+      .map(([key, telescope]) => `<option value="${key}">${telescope.name}</option>`)
+      .join('') +
+    '</optgroup>'
+  ).join('');
+}
+
+function cameraOptionsMarkup(){
+  const groups = [...new Set(Object.values(MAIN_CAMS).map(camera => camera.group))];
+  return '<option value="">Select an imaging camera…</option>' + groups.map(group =>
+    `<optgroup label="${group}">` +
+    Object.entries(MAIN_CAMS)
+      .filter(([, camera]) => camera.group === group)
+      .map(([key, camera]) => `<option value="${key}">${camera.name}</option>`)
+      .join('') +
+    '</optgroup>'
+  ).join('');
+}
+
+function reducerOptionsMarkup(){
+  return '<option value="">Select a reducer…</option>' +
+    REDUCER_PRESETS.map(preset =>
+      `<option value="${preset.value}">${preset.name}</option>`
+    ).join('') +
+    '<option value="custom">Custom factor</option>';
+}
+
+function buildEquipmentOptions(){
+  $("telescope").innerHTML = telescopeOptionsMarkup();
+  $("reducerPreset").innerHTML = reducerOptionsMarkup();
+}
+
+function clampValue(value, min, max, fallback){
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+}
+
+function getMosaicSpec(){
+  const key = $("mosaicCamera").value;
+  const cam = MAIN_CAMS[key];
+  const telescope = TELESCOPES[$("mosaicTelescope").value];
+  const fl = Number($("mosaicFl").value);
+  if(!cam || !(fl > 0)) return null;
+  const cols = Math.round(clampValue($("mosaicCols").value, 1, 20, 3));
+  const rows = Math.round(clampValue($("mosaicRows").value, 1, 20, 2));
+  const overlapX = clampValue($("mosaicOverlapX").value, 0, 80, 15);
+  const overlapY = clampValue($("mosaicOverlapY").value, 0, 80, 15);
+  const tileW = angularDeg(cam.w, fl);
+  const tileH = angularDeg(cam.h, fl);
+  const stepX = tileW * (1 - overlapX / 100);
+  const stepY = tileH * (1 - overlapY / 100);
+  const totalW = tileW + (cols - 1) * stepX;
+  const totalH = tileH + (rows - 1) * stepY;
+  return {cam, telescope, fl, cols, rows, overlapX, overlapY, tileW, tileH, stepX, stepY, totalW, totalH};
+}
+
+function svgText(x, y, text, angle){
+  return `<text x="${x}" y="${y}" fill="#efeaff" font-size="12" font-weight="600"
+    text-anchor="middle" dominant-baseline="middle" paint-order="stroke"
+    stroke="#111522" stroke-width="3" vector-effect="non-scaling-stroke"
+    transform="rotate(${angle} ${x} ${y})">${text}</text>`;
+}
+
+function syncTelescopeFields(fromTelescope=true){
+  if(fromTelescope){
+    const telescope = TELESCOPES[$("telescope").value];
+    $("nativeFl").value = telescope ? telescope.fl : "";
+  }
+  const nativeFl = Number($("nativeFl").value);
+  const reducer = $("reducer").value === "" ? 1 : Number($("reducer").value);
+  $("fl").value = nativeFl > 0 && reducer > 0 ? (nativeFl * reducer).toFixed(2) : "";
+}
+
+function syncMosaicTelescopeFields(){
+  const telescope = TELESCOPES[$("mosaicTelescope").value];
+  const reducer = $("mosaicReducer").value === "" ? 1 : Number($("mosaicReducer").value);
+  $("mosaicFl").value = telescope && reducer > 0 ? (telescope.fl * reducer).toFixed(2) : "";
+}
+
+function mosaicRotationIsSynced(){
+  return $("syncMosaicRotation").getAttribute("aria-pressed") === "true";
+}
+
+function syncMosaicRotationFromMain(){
+  if(!mosaicRotationIsSynced()) return;
+  const angle = $("mainPA").value;
+  $("mosaicRotation").value = angle;
+  $("mosaicRotationNum").value = angle;
+}
+
+function setMosaicRotationSync(enabled){
+  const button = $("syncMosaicRotation");
+  button.setAttribute("aria-pressed", String(enabled));
+  button.textContent = `Sync with main rotation: ${enabled ? "On" : "Off"}`;
+  $("mosaicRotation").disabled = enabled;
+  $("mosaicRotationNum").disabled = enabled;
+  if(enabled) syncMosaicRotationFromMain();
+  update();
+}
+
+function comparisonLabel(index){
+  let label = "";
+  for(let n = index + 1; n > 0; n = Math.floor((n - 1) / 26)){
+    label = String.fromCharCode(65 + ((n - 1) % 26)) + label;
+  }
+  return label;
+}
+
+function comparisonStyle(index){
+  const hue = Math.round((188 + index * 137.508) % 360);
+  const dashes = ["", "10 6", "3 5", "14 5 3 5"];
+  return {color:`hsl(${hue} 82% 67%)`, dash:dashes[index % dashes.length]};
+}
+
+function renumberComparisonSetups(){
+  [...document.querySelectorAll("#comparisonList .compareCard")].forEach((card, index) => {
+    const label = comparisonLabel(index);
+    const style = comparisonStyle(index);
+    card.dataset.label = label;
+    card.dataset.color = style.color;
+    card.dataset.dash = style.dash;
+    card.style.setProperty("--compare-color", style.color);
+    card.querySelector(".setupLabel").textContent = `Setup ${label}`;
+  });
+}
+
+function activateComparison(card){
+  activeComparisonId = card?.dataset.comparisonId || null;
+  document.querySelectorAll("#comparisonList .compareCard").forEach(item => {
+    item.classList.toggle("active", item === card);
+  });
+}
+
+function activateMainConfiguration(){
+  activeComparisonId = null;
+  document.querySelectorAll("#comparisonList .compareCard").forEach(card => card.classList.remove("active"));
+}
+
+function syncComparisonFields(card){
+  const telescope = TELESCOPES[card.querySelector(".compareTelescope").value];
+  const factorInput = card.querySelector(".compareReducer");
+  const factor = factorInput.value === "" ? 1 : Number(factorInput.value);
+  card.querySelector(".compareFl").value =
+    telescope && factor > 0 ? (telescope.fl * factor).toFixed(2) : "";
+}
+
+function addComparisonSetup({skipUpdate=false} = {}){
+  const card = document.createElement("div");
+  card.className = "compareCard";
+  card.dataset.comparisonId = String(++comparisonSequence);
+  card.innerHTML = `
+    <div class="compareHeading">
+      <h3><span class="compareDot"></span><span class="setupLabel"></span></h3>
+      <button class="removeComparison" type="button" aria-label="Remove setup">Remove</button>
+    </div>
+    <label>Telescope <select class="compareTelescope">${telescopeOptionsMarkup()}</select></label>
+    <label>Imaging camera <select class="compareCamera">${cameraOptionsMarkup()}</select></label>
+    <label>Reducer preset <select class="compareReducerPreset">${reducerOptionsMarkup()}</select></label>
+    <label>Reducer factor <input class="compareReducer" type="number" min="0.01" step="0.001" placeholder="e.g., 1.000"></label>
+    <label>Effective focal length (mm)<input class="compareFl" type="number" min="1" placeholder="Calculated or custom"></label>
+  `;
+  $("comparisonList").appendChild(card);
+  renumberComparisonSetups();
+  card.addEventListener("focusin", () => {
+    activateComparison(card);
+    updateConfigurationInsight();
+  });
+
+  card.querySelector(".compareTelescope").addEventListener("change", () => {
+    activateComparison(card);
+    syncComparisonFields(card);
+    update();
+  });
+  card.querySelector(".compareCamera").addEventListener("change", () => {
+    activateComparison(card);
+    update();
+  });
+  card.querySelector(".compareReducerPreset").addEventListener("change", event => {
+    activateComparison(card);
+    const value = event.currentTarget.value;
+    const factorInput = card.querySelector(".compareReducer");
+    if(value === "") factorInput.value = "";
+    else if(value !== "custom") factorInput.value = Number(value).toFixed(3);
+    syncComparisonFields(card);
+    update();
+  });
+  card.querySelector(".compareReducer").addEventListener("input", event => {
+    activateComparison(card);
+    card.querySelector(".compareReducerPreset").value = event.currentTarget.value === "" ? "" : "custom";
+    syncComparisonFields(card);
+    update();
+  });
+  card.querySelector(".compareFl").addEventListener("input", () => {
+    activateComparison(card);
+    update();
+  });
+  card.querySelector(".removeComparison").addEventListener("click", () => {
+    if(activeComparisonId === card.dataset.comparisonId) activeComparisonId = null;
+    card.remove();
+    renumberComparisonSetups();
+    update();
+  });
+
+  if(!skipUpdate) update();
+  return card;
+}
+
+function resetComparisonSetups(){
+  activeComparisonId = null;
+  $("comparisonList").replaceChildren();
+  addComparisonSetup({skipUpdate:true});
+  addComparisonSetup({skipUpdate:true});
+  update();
+}
+
+function getComparisonConfigs(){
+  return [...document.querySelectorAll("#comparisonList .compareCard")].map(card => {
+    const telescopeKey = card.querySelector(".compareTelescope").value;
+    const cameraKey = card.querySelector(".compareCamera").value;
+    const telescope = TELESCOPES[telescopeKey];
+    const fl = Number(card.querySelector(".compareFl").value);
+    const enteredReducer = Number(card.querySelector(".compareReducer").value);
+    return {
+      id: card.dataset.comparisonId,
+      label: card.dataset.label,
+      color: card.dataset.color,
+      dash: card.dataset.dash,
+      telescopeKey,
+      cameraKey,
+      reducer: enteredReducer > 0 ? enteredReducer : (telescope && fl > 0 ? fl / telescope.fl : 1),
+      fl,
+      telescope,
+      camera: MAIN_CAMS[cameraKey]
+    };
+  }).filter(config => config.camera && config.fl > 0);
+}
+
+function updateComparisonSummary(){
+  const configs = getComparisonConfigs();
+  $("comparisonSummary").innerHTML = configs.length ? configs.map(config => {
+    const width = angularDeg(config.camera.w, config.fl);
+    const height = angularDeg(config.camera.h, config.fl);
+    const telescopeName = config.telescope?.name || `${config.fl.toFixed(0)}mm focal length`;
+    const reducerText = config.reducer > 0 ? ` · ${config.reducer.toFixed(3)}×` : '';
+    return `<div class="summaryItem"><span style="color:${config.color}">Setup ${config.label}: ${telescopeName} + ${config.camera.name}${reducerText}</span><strong>${amin(width)} × ${amin(height)}</strong></div>`;
+  }).join('') : '<div class="small">Choose a telescope and camera in any setup to compare its FOV.</div>';
+}
+
+function getMainAnalysisConfig(){
+  const telescopeKey = $("telescope").value;
+  const telescope = TELESCOPES[telescopeKey];
+  const selectedCameras = selectedMainKeys();
+  const cameraKey = selectedCameras.includes(activeMainCameraKey) ? activeMainCameraKey : selectedCameras[0];
+  const camera = MAIN_CAMS[cameraKey];
+  const fl = Number($("fl").value);
+  if(!telescope || !camera || !(fl > 0)) return null;
+  const enteredReducer = Number($("reducer").value);
+  return {
+    source:"Main setup",
+    telescopeKey,
+    telescope,
+    camera,
+    fl,
+    reducer:enteredReducer > 0 ? enteredReducer : fl / telescope.fl
+  };
+}
+
+function getAnalysisConfig(){
+  const comparisons = getComparisonConfigs().filter(config => config.telescope);
+  const active = comparisons.find(config => config.id === activeComparisonId);
+  if(active) return {...active, source:`Setup ${active.label}`};
+  const main = getMainAnalysisConfig();
+  if(main) return main;
+  const first = comparisons[0];
+  return first ? {...first, source:`Setup ${first.label}`} : null;
+}
+
+function getImageCircle(telescope, reducer){
+  if(!telescope) return {diameter:null, note:"Select a telescope"};
+  const factor = reducer > 0 ? reducer : 1;
+  if(Math.abs(factor - 1) < 0.005){
+    return {
+      diameter:Number.isFinite(telescope.imageCircle) ? telescope.imageCircle : null,
+      note:telescope.circleNote || "No manufacturer-optimized image-circle diameter published"
+    };
+  }
+  const key = factor.toFixed(2);
+  const reduced = telescope.reducedImageCircles?.[key];
+  return {
+    diameter:Number.isFinite(reduced) ? reduced : null,
+    note:Number.isFinite(reduced)
+      ? "Manufacturer-specified image circle with this reducer"
+      : "No manufacturer image-circle diameter published for this telescope/reducer combination"
+  };
+}
+
+function setInsightStatus(node, text, status="neutral", title=""){
+  node.textContent = text;
+  node.className = status;
+  node.title = title;
+}
+
+function updateConfigurationInsight(){
+  const config = getAnalysisConfig();
+  if(!config){
+    $("insightConfig").textContent = "Select telescope + camera";
+    setInsightStatus($("insightCircle"), "—");
+    $("insightFRatio").textContent = "—";
+    $("insightScale").textContent = "—";
+    setInsightStatus($("insightSampling"), "—");
+    $("insightSeeing").textContent = "—";
+    return;
+  }
+
+  const {telescope, camera, fl, reducer, source} = config;
+  const sensorDiagonal = Math.hypot(camera.w, camera.h);
+  const circle = getImageCircle(telescope, reducer);
+  const fRatio = fl / telescope.aperture;
+  const imageScale = 206.265 * camera.pixel / fl;
+  const rayleigh = 138.4 / telescope.aperture;
+  const sampling = rayleigh / imageScale;
+
+  $("insightConfig").textContent = `${source}: ${telescope.name} + ${camera.name}`;
+  $("insightConfig").title = `${telescope.name} + ${camera.name}`;
+
+  if(circle.diameter === null){
+    setInsightStatus(
+      $("insightCircle"),
+      `? Not published · sensor ${sensorDiagonal.toFixed(1)}mm`,
+      "neutral",
+      circle.note
+    );
+  }else if(sensorDiagonal <= circle.diameter + 0.05){
+    setInsightStatus(
+      $("insightCircle"),
+      `✓ ${sensorDiagonal.toFixed(1)} ≤ ${circle.diameter.toFixed(1)}mm`,
+      "good",
+      `${circle.note}. The camera sensor diagonal fits the published image circle.`
+    );
+  }else{
+    setInsightStatus(
+      $("insightCircle"),
+      `✕ ${sensorDiagonal.toFixed(1)} > ${circle.diameter.toFixed(1)}mm`,
+      "bad",
+      `${circle.note}. The sensor exceeds the published circle by ${(sensorDiagonal-circle.diameter).toFixed(1)} mm and may require cropping.`
+    );
+  }
+
+  $("insightFRatio").textContent = `f/${fRatio.toFixed(2)} · ${reducer.toFixed(3)}×`;
+  $("insightScale").textContent = `${imageScale.toFixed(3)}″/px · ${camera.pixel.toFixed(2)}µm`;
+  const samplingStatus = sampling >= 2 ? "good" : sampling >= 1 ? "warn" : "bad";
+  setInsightStatus(
+    $("insightSampling"),
+    `${sampling.toFixed(2)} px/Rayleigh ${sampling >= 2 ? "✓" : "⚠"}`,
+    samplingStatus,
+    sampling >= 2
+      ? "The camera meets the two-pixel Nyquist criterion at the telescope's 550 nm Rayleigh limit."
+      : "The camera undersamples the telescope's 550 nm Rayleigh limit at 1×1 binning."
+  );
+  $("insightSeeing").textContent = `≤ ${rayleigh.toFixed(2)}″ @ 550nm`;
+  $("insightSeeing").title =
+    `Atmospheric seeing must be about ${rayleigh.toFixed(2)} arcseconds FWHM or better to approach the full ${telescope.aperture.toFixed(1)} mm aperture resolution. Nyquist-matched seeing for this image scale is ${(2*imageScale).toFixed(2)} arcseconds.`;
+}
+
+function applyOagPreset(){
+  const p = $("preset").value;
+  if(p === "zwo"){
+    $("prismW").value = 8; $("prismH").value = 8; $("offset").value = 14;
+  }else if(p === "zwol"){
+    $("prismW").value = 12; $("prismH").value = 12; $("offset").value = 16.0;
+  }else if(p === "celestron"){
+    $("prismW").value = 12.5; $("prismH").value = 12.5; $("offset").value = 16.3;
+  }
+  update();
+  fitAll();
+}
+
+function updateSummaries(fl){
+  const mains = selectedMainKeys();
+  const guides = selectedGuideKeys();
+  const validFocalLength = fl > 0;
+
+  $("mainSummary").innerHTML = mains.length ? mains.map(key => {
+    const cam = MAIN_CAMS[key];
+    const fov = validFocalLength ? `${amin(angularDeg(cam.w, fl))} × ${amin(angularDeg(cam.h, fl))}` : 'Select a telescope';
+    return `<div class="summaryItem"><span style="color:${cam.color}">${cam.name}</span><strong>${fov}</strong></div>`;
+  }).join('') : `<div class="small">No main camera selected.</div>`;
+
+  $("guideSummary").innerHTML = guides.length ? guides.map(key => {
+    const cam = GUIDE_CAMS[key];
+    const fov = validFocalLength ? `${amin(angularDeg(cam.w, fl))} × ${amin(angularDeg(cam.h, fl))}` : 'Select a telescope';
+    return `<div class="summaryItem"><span style="color:${cam.color}">${cam.name}</span><strong>${fov}</strong></div>`;
+  }).join('') : `<div class="small">No guide camera selected.</div>`;
+
+  $("legendDynamic").innerHTML = [
+    ...getComparisonConfigs().map(config =>
+      `<div><span class="swatch" style="border-color:${config.color};border-style:${config.dash ? 'dashed' : 'solid'}"></span>Setup ${config.label}: ${config.telescope?.name || 'Custom telescope'} + ${config.camera.name}</div>`
+    ),
+    ...mains.map(key => {
+      const cam = MAIN_CAMS[key];
+      return `<div><span class="swatch" style="border-color:${cam.color}"></span>${cam.name} main FOV</div>`;
+    }),
+    ...guides.map(key => {
+      const cam = GUIDE_CAMS[key];
+      return `<div><span class="swatch" style="border-color:${cam.color}"></span>${cam.name} guide FOV</div>`;
+    })
+  ].join('');
+}
+
+function update(){
+  const W = $("viewer").clientWidth, H = $("viewer").clientHeight;
+  $("overlay").setAttribute("viewBox", `0 0 ${W} ${H}`);
+
+  const [fovXraw, fovYraw] = getLiveFov();
+  const fovX = Math.max(0.00001, fovXraw), fovY = Math.max(0.00001, fovYraw);
+  const sx = W / fovX, sy = H / fovY;
+
+  const fl = Number($("fl").value);
+  const mains = selectedMainKeys();
+  const guides = selectedGuideKeys();
+  const showOag = $("showOag").checked;
+
+  const pw = angularDeg(+$("prismW").value, fl), ph = angularDeg(+$("prismH").value, fl);
+  const off = offsetDeg(+$("offset").value, fl);
+
+  // Cosmetic behavior: keep the main imaging FOVs visually pinned to the
+  // exact center of the viewer at all times, regardless of zooming or scrolling.
+  const mainCx = W / 2, mainCy = H / 2;
+  const pa = +$("oagPA").value, rad = pa * Math.PI / 180;
+  const gx = mainCx + Math.sin(rad) * off * sx;
+  const gy = mainCy - Math.cos(rad) * off * sy;
+
+  // The prism is fixed to the OAG body. Guide-camera rotation changes only
+  // the sensor rectangle inside the prism-delivered field.
+  const prismAngle = pa;
+  const guideAngle = pa + (+$("guideRot").value);
+
+  let svg = '';
+
+  // Mosaic tiles use their own telescope, camera, reducer, and rotation.
+  if($("showMosaic").checked){
+    const m = getMosaicSpec();
+    if(m){
+      const mosaicAngle = +$("mosaicRotation").value;
+      const a = mosaicAngle * Math.PI / 180;
+      let tileNumber = 1;
+
+      for(let row = 0; row < m.rows; row++){
+        const sequence = [];
+        for(let col = 0; col < m.cols; col++) sequence.push(col);
+        if(row % 2 === 1) sequence.reverse();
+
+        for(const col of sequence){
+          const localX = (col - (m.cols - 1) / 2) * m.stepX * sx;
+          const localY = (row - (m.rows - 1) / 2) * m.stepY * sy;
+
+          const dx = localX * Math.cos(a) - localY * Math.sin(a);
+          const dy = localX * Math.sin(a) + localY * Math.cos(a);
+          const tx = mainCx + dx;
+          const ty = mainCy + dy;
+
+          svg += rect(tx, ty, m.tileW * sx, m.tileH * sy, mosaicAngle, "#b9a6ff", "9 5");
+          if($("numberTiles").checked) svg += svgText(tx, ty, tileNumber, mosaicAngle);
+          tileNumber++;
+        }
+      }
+    }
+  }
+
+  // Keep the selected main-camera FOVs visible alongside the mosaic tiles.
+  mains.forEach(key => {
+    const cam = MAIN_CAMS[key];
+    const mw = angularDeg(cam.w, fl), mh = angularDeg(cam.h, fl);
+    svg += rect(mainCx, mainCy, mw * sx, mh * sy, +$("mainPA").value, cam.color);
+    svg += cross(mainCx, mainCy, cam.color);
+  });
+
+  // Independent telescope/camera pairs for direct framing comparison.
+  getComparisonConfigs().forEach(config => {
+    const width = angularDeg(config.camera.w, config.fl);
+    const height = angularDeg(config.camera.h, config.fl);
+    svg += rect(mainCx, mainCy, width * sx, height * sy, 0, config.color, config.dash);
+  });
+
+  // OAG overlays (referenced from the same fixed visual center)
+  if(showOag){
+    svg += `<ellipse cx="${mainCx}" cy="${mainCy}" rx="${off*sx}" ry="${off*sy}" fill="none" stroke="#d78cff" stroke-width="1.6" stroke-dasharray="8 6" vector-effect="non-scaling-stroke"/>`;
+    svg += rect(gx, gy, pw * sx, ph * sy, prismAngle, "#ffb44d", "7 5");
+
+    guides.forEach(key => {
+      const cam = GUIDE_CAMS[key];
+      const gw = angularDeg(cam.w, fl), gh = angularDeg(cam.h, fl);
+      svg += rect(gx, gy, gw * sx, gh * sy, guideAngle, cam.color);
+      svg += cross(gx, gy, cam.color);
+    });
+  }
+
+  $("graphics").innerHTML = svg;
+
+  // Metrics
+  let mainMaxW = 0, mainMaxH = 0, guideMaxW = 0, guideMaxH = 0;
+  mains.forEach(key => {
+    const cam = MAIN_CAMS[key];
+    mainMaxW = Math.max(mainMaxW, angularDeg(cam.w, fl));
+    mainMaxH = Math.max(mainMaxH, angularDeg(cam.h, fl));
+  });
+  guides.forEach(key => {
+    const cam = GUIDE_CAMS[key];
+    guideMaxW = Math.max(guideMaxW, angularDeg(cam.w, fl));
+    guideMaxH = Math.max(guideMaxH, angularDeg(cam.h, fl));
+  });
+
+  $("flMetric").textContent = fl > 0 ? `${fl.toFixed(2)} mm` : "—";
+  $("mainMetric").textContent = mains.length && fl > 0 ? `${amin(mainMaxW)} × ${amin(mainMaxH)}` : "—";
+  $("guideMetric").textContent = guides.length && fl > 0 ? `${amin(guideMaxW)} × ${amin(guideMaxH)}` : "—";
+  $("prismMetric").textContent = showOag ? `${amin(pw)} × ${amin(ph)}` : "Hidden";
+  $("offsetMetric").textContent = showOag ? amin(off) : "Hidden";
+  $("liveFov").textContent = `${fovX.toFixed(3)}° × ${fovY.toFixed(3)}°`;
+  $("oagPANum").value = pa;
+  $("mainPANum").value = $("mainPA").value;
+  $("guideRotNum").value = $("guideRot").value;
+
+  const m = getMosaicSpec();
+  $("mosaicOverlapXNum").value = $("mosaicOverlapX").value;
+  $("mosaicOverlapYNum").value = $("mosaicOverlapY").value;
+  $("mosaicRotationNum").value = $("mosaicRotation").value;
+  $("mosaicTileCount").textContent = m ? String(m.cols * m.rows) : "—";
+  $("mosaicTileFov").textContent = m ? `${amin(m.tileW)} × ${amin(m.tileH)}` : "—";
+  $("mosaicTotalFov").textContent = m ? `${amin(m.totalW)} × ${amin(m.totalH)}` : "—";
+  $("mosaicSpacing").textContent = m ? `${amin(m.stepX)} × ${amin(m.stepY)}` : "—";
+  $("mosaicFlMetric").textContent = m ? `${m.fl.toFixed(2)} mm` : "—";
+  $("mosaicLegend").textContent = m
+    ? `Mosaic: ${m.telescope?.name || `${m.fl.toFixed(0)}mm telescope`} + ${m.cam.name}`
+    : "Mosaic tiles";
+
+  updateSummaries(fl);
+  updateComparisonSummary();
+  updateConfigurationInsight();
+  drawConstellations();
+}
+
+function fitAll(){
+  const fl = Number($("fl").value);
+  const mains = selectedMainKeys();
+  const guides = selectedGuideKeys();
+  const showOag = $("showOag").checked;
+
+  let maxMain = 0;
+  mains.forEach(key => {
+    const cam = MAIN_CAMS[key];
+    maxMain = Math.max(maxMain, angularDeg(cam.w, fl), angularDeg(cam.h, fl));
+  });
+
+  let wanted = Math.max(0.45, maxMain * 1.50);
+
+  getComparisonConfigs().forEach(config => {
+    wanted = Math.max(
+      wanted,
+      angularDeg(config.camera.w, config.fl) * 1.5,
+      angularDeg(config.camera.h, config.fl) * 1.5
+    );
+  });
+
+  if(showOag){
+    const off = offsetDeg(+$("offset").value, fl);
+    const pw = angularDeg(+$("prismW").value, fl), ph = angularDeg(+$("prismH").value, fl);
+    let maxGuide = 0;
+    guides.forEach(key => {
+      const cam = GUIDE_CAMS[key];
+      const diag = Math.sqrt(Math.pow(angularDeg(cam.w, fl), 2) + Math.pow(angularDeg(cam.h, fl), 2));
+      maxGuide = Math.max(maxGuide, diag);
+    });
+    const prismDiag = Math.sqrt(pw*pw + ph*ph);
+    const half = Math.max(prismDiag/2, maxGuide/2, maxMain/2);
+    const diameter = 2 * (off + half);
+    wanted = Math.max(wanted, diameter * 1.45);
+  }
+
+  aladin.setFoV(wanted);
+  $("manualFov").value = wanted.toFixed(3);
+  setTimeout(update, 120);
+}
+
+function fitMain(){
+  const fl = Number($("fl").value);
+  const mains = selectedMainKeys();
+  if(!(fl > 0) || !mains.length) return;
+  let maxMain = 0;
+  mains.forEach(key => {
+    const cam = MAIN_CAMS[key];
+    maxMain = Math.max(maxMain, angularDeg(cam.w, fl), angularDeg(cam.h, fl));
+  });
+  const size = Math.max(0.20, maxMain * 1.55);
+  aladin.setFoV(size);
+  $("manualFov").value = size.toFixed(3);
+  setTimeout(update, 120);
+}
+
+function fitMosaic(){
+  const m = getMosaicSpec();
+  if(!m) return;
+  const angle = (+$("mosaicRotation").value % 180) * Math.PI / 180;
+  const boundingW = Math.abs(m.totalW * Math.cos(angle)) + Math.abs(m.totalH * Math.sin(angle));
+  const boundingH = Math.abs(m.totalW * Math.sin(angle)) + Math.abs(m.totalH * Math.cos(angle));
+  const viewerRatio = $("viewer").clientWidth / Math.max(1, $("viewer").clientHeight);
+  const requiredHorizontal = Math.max(boundingW, boundingH * viewerRatio);
+  const size = Math.max(0.20, requiredHorizontal * 1.20);
+  aladin.setFoV(size);
+  $("manualFov").value = size.toFixed(3);
+  setTimeout(update, 150);
+}
+
+makeSidebarSectionsCollapsible();
+buildCameraLists();
+buildMosaicCameraOptions();
+buildEquipmentOptions();
+buildMosaicEquipmentOptions();
+addComparisonSetup({skipUpdate:true});
+addComparisonSetup({skipUpdate:true});
+
+function fitComparison(){
+  const configs = getComparisonConfigs();
+  if(!configs.length) return;
+  let wanted = 0;
+  configs.forEach(config => {
+    wanted = Math.max(
+      wanted,
+      angularDeg(config.camera.w, config.fl),
+      angularDeg(config.camera.h, config.fl)
+    );
+  });
+  const size = Math.max(0.20, wanted * 1.55);
+  aladin.setFoV(size);
+  $("manualFov").value = size.toFixed(3);
+  setTimeout(update, 120);
+}
+
+function normalizeDegrees(value){
+  let v = value % 360;
+  if(v < 0) v += 360;
+  return v;
+}
+
+function julianDate(date){
+  return date.getTime() / 86400000 + 2440587.5;
+}
+
+function localSiderealTimeDegrees(longitudeDeg, date = new Date()){
+  const jd = julianDate(date);
+  const d = jd - 2451545.0;
+  const gmst = 280.46061837 + 360.98564736629 * d;
+  return normalizeDegrees(gmst + longitudeDeg);
+}
+
+function useObserverLocation(latitude, longitude){
+  skySimulation?.setObserver(latitude, longitude);
+  const zenith = skySimulation?.zenith() || [localSiderealTimeDegrees(longitude), latitude];
+  aladin.gotoRaDec(zenith[0], zenith[1]);
+  $("target").value = `Zenith at selected time (${(zenith[0]/15).toFixed(2)}h, ${zenith[1].toFixed(2)}°)`;
+  $("locationStatus").textContent =
+    `Lat ${latitude.toFixed(4)}°, Lon ${longitude.toFixed(4)}°`;
+  setTimeout(() => {
+    if($("showMosaic").checked) fitMosaic();
+    else fitAll();
+  }, 500);
+}
+
+
+const CONSTELLATION_URLS = {
+  lines: [
+    "https://cdn.jsdelivr.net/npm/d3-celestial@0.7.35/data/constellations.lines.json",
+    "https://cdn.jsdelivr.net/npm/d3-celestial/data/constellations.lines.json"
+  ],
+  bounds: [
+    "https://cdn.jsdelivr.net/npm/d3-celestial@0.7.35/data/constellations.bounds.json",
+    "https://cdn.jsdelivr.net/npm/d3-celestial/data/constellations.bounds.json"
+  ],
+  names: [
+    "https://cdn.jsdelivr.net/npm/d3-celestial@0.7.35/data/constellations.json",
+    "https://cdn.jsdelivr.net/npm/d3-celestial/data/constellations.json"
+  ]
+};
+
+const constellationState = {
+  lines: null,
+  bounds: null,
+  names: null,
+  loading: false,
+  loaded: false,
+  failed: false,
+  redrawKey: ""
+};
+
+async function fetchFirstWorking(urls){
+  let lastError = null;
+  for(const url of urls){
+    try{
+      const response = await fetch(url, {cache:"force-cache"});
+      if(!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.json();
+    }catch(error){
+      lastError = error;
+    }
+  }
+  throw lastError || new Error("Unable to load constellation data");
+}
+
+async function ensureConstellationData(){
+  if(constellationState.loaded || constellationState.loading) return;
+  constellationState.loading = true;
+  $("constellationStatus").textContent = "Loading…";
+
+  try{
+    const [lines, bounds, names] = await Promise.all([
+      fetchFirstWorking(CONSTELLATION_URLS.lines),
+      fetchFirstWorking(CONSTELLATION_URLS.bounds),
+      fetchFirstWorking(CONSTELLATION_URLS.names)
+    ]);
+    constellationState.lines = lines;
+    constellationState.bounds = bounds;
+    constellationState.names = names;
+    constellationState.loaded = true;
+    constellationState.failed = false;
+    $("constellationStatus").textContent = "Ready";
+    constellationState.redrawKey = "";
+    drawConstellations(true);
+  }catch(error){
+    console.error("Constellation data failed to load:", error);
+    constellationState.failed = true;
+    $("constellationStatus").textContent = "Could not load";
+  }finally{
+    constellationState.loading = false;
+  }
+}
+
+function constellationEnabled(){
+  return $("showConstellationLines").checked ||
+         $("showConstellationFigures").checked ||
+         $("showConstellationNames").checked;
+}
+
+function normalizeRa(lon){
+  let ra = Number(lon) % 360;
+  if(ra < 0) ra += 360;
+  return ra;
+}
+
+function projectSkyCoordinate(coord){
+  if(!Array.isArray(coord) || coord.length < 2) return null;
+  const ra = normalizeRa(coord[0]);
+  const dec = Number(coord[1]);
+  if(!Number.isFinite(ra) || !Number.isFinite(dec)) return null;
+  return aladin.world2pix(ra, dec);
+}
+
+function canvasPathFromCoordinates(ctx, coords, closePath=false){
+  let started = false;
+  let previous = null;
+  const W = $("viewer").clientWidth;
+  const H = $("viewer").clientHeight;
+  const jumpLimit = Math.max(W, H) * 0.65;
+
+  for(const coord of coords){
+    const point = projectSkyCoordinate(coord);
+    if(!point || !Number.isFinite(point[0]) || !Number.isFinite(point[1])){
+      previous = null;
+      started = false;
+      continue;
+    }
+
+    const x = point[0], y = point[1];
+    const farOutside = x < -W || x > W * 2 || y < -H || y > H * 2;
+    if(farOutside){
+      previous = null;
+      started = false;
+      continue;
+    }
+
+    if(!previous || Math.hypot(x - previous[0], y - previous[1]) > jumpLimit){
+      ctx.moveTo(x, y);
+      started = true;
+    }else{
+      ctx.lineTo(x, y);
+    }
+    previous = [x, y];
+  }
+
+  if(closePath && started) ctx.closePath();
+}
+
+function forEachGeoGeometry(geojson, callback){
+  if(!geojson) return;
+  const features = geojson.type === "FeatureCollection" ? geojson.features : [geojson];
+  for(const feature of features){
+    const geometry = feature.geometry || feature;
+    if(!geometry) continue;
+    callback(geometry, feature.properties || {});
+  }
+}
+
+function drawConstellationBounds(ctx, opacity){
+  const data = constellationState.bounds;
+  if(!data) return;
+
+  ctx.save();
+  ctx.fillStyle = `rgba(126, 182, 255, ${opacity})`;
+  ctx.strokeStyle = `rgba(153, 202, 255, ${Math.min(0.38, opacity * 2.1)})`;
+  ctx.lineWidth = 0.8;
+
+  forEachGeoGeometry(data, geometry => {
+    const polygons =
+      geometry.type === "Polygon" ? [geometry.coordinates] :
+      geometry.type === "MultiPolygon" ? geometry.coordinates : [];
+
+    for(const polygon of polygons){
+      ctx.beginPath();
+      for(const ring of polygon) canvasPathFromCoordinates(ctx, ring, true);
+      ctx.fill("evenodd");
+      ctx.stroke();
+    }
+  });
+  ctx.restore();
+}
+
+function drawConstellationLines(ctx){
+  const data = constellationState.lines;
+  if(!data) return;
+
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  // Soft translucent figure underlay.
+  ctx.strokeStyle = "rgba(101, 173, 255, 0.20)";
+  ctx.lineWidth = 5;
+  forEachGeoGeometry(data, geometry => {
+    const lines =
+      geometry.type === "LineString" ? [geometry.coordinates] :
+      geometry.type === "MultiLineString" ? geometry.coordinates : [];
+    for(const line of lines){
+      ctx.beginPath();
+      canvasPathFromCoordinates(ctx, line);
+      ctx.stroke();
+    }
+  });
+
+  // Crisp line layer.
+  ctx.strokeStyle = "rgba(184, 220, 255, 0.90)";
+  ctx.lineWidth = 1.35;
+  forEachGeoGeometry(data, geometry => {
+    const lines =
+      geometry.type === "LineString" ? [geometry.coordinates] :
+      geometry.type === "MultiLineString" ? geometry.coordinates : [];
+    for(const line of lines){
+      ctx.beginPath();
+      canvasPathFromCoordinates(ctx, line);
+      ctx.stroke();
+    }
+  });
+  ctx.restore();
+}
+
+function constellationDisplayName(properties){
+  return properties.name ||
+         properties.name_en ||
+         properties.iau ||
+         properties.desig ||
+         properties.id ||
+         "";
+}
+
+function drawConstellationNames(ctx){
+  const data = constellationState.names;
+  if(!data) return;
+
+  ctx.save();
+  ctx.font = "600 13px system-ui, -apple-system, Segoe UI, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+
+  forEachGeoGeometry(data, (geometry, properties) => {
+    if(geometry.type !== "Point") return;
+    const point = projectSkyCoordinate(geometry.coordinates);
+    if(!point) return;
+
+    const x = point[0], y = point[1];
+    const W = $("viewer").clientWidth, H = $("viewer").clientHeight;
+    if(x < -80 || x > W + 80 || y < -30 || y > H + 30) return;
+
+    const name = constellationDisplayName(properties);
+    if(!name) return;
+
+    ctx.strokeStyle = "rgba(3, 9, 18, 0.92)";
+    ctx.lineWidth = 4;
+    ctx.strokeText(name, x, y);
+    ctx.fillStyle = "rgba(222, 237, 255, 0.94)";
+    ctx.fillText(name, x, y);
+  });
+  ctx.restore();
+}
+
+function drawConstellations(force=false){
+  const canvas = $("constellationCanvas");
+  if(!canvas || typeof aladin === "undefined") return;
+
+  const W = $("viewer").clientWidth;
+  const H = $("viewer").clientHeight;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const center = aladin.getRaDec ? aladin.getRaDec() : [0, 0];
+  const fov = aladin.getFov ? aladin.getFov() : [0, 0];
+  const key = [
+    W, H, dpr,
+    center ? center.map(v => Number(v).toFixed(4)).join(",") : "",
+    fov ? fov.map(v => Number(v).toFixed(4)).join(",") : "",
+    $("showConstellationLines").checked,
+    $("showConstellationFigures").checked,
+    $("showConstellationNames").checked,
+    $("constellationOpacity").value
+  ].join("|");
+
+  if(!force && key === constellationState.redrawKey) return;
+  constellationState.redrawKey = key;
+
+  if(canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)){
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    canvas.style.width = `${W}px`;
+    canvas.style.height = `${H}px`;
+  }
+
+  const ctx = canvas.getContext("2d", {alpha:true});
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  if(!constellationEnabled()){
+    $("constellationStatus").textContent = constellationState.loaded ? "Ready" : "Off";
+    return;
+  }
+
+  if(!constellationState.loaded){
+    ensureConstellationData();
+    return;
+  }
+
+  const opacity = Math.max(0.03, Math.min(0.35, Number($("constellationOpacity").value) / 100));
+  if($("showConstellationFigures").checked) drawConstellationBounds(ctx, opacity);
+  if($("showConstellationLines").checked) drawConstellationLines(ctx);
+  if($("showConstellationNames").checked) drawConstellationNames(ctx);
+
+  const active = [];
+  if($("showConstellationLines").checked) active.push("lines");
+  if($("showConstellationFigures").checked) active.push("figures");
+  if($("showConstellationNames").checked) active.push("names");
+  $("constellationStatus").textContent = active.join(" + ");
+}
+
+function scheduleConstellationDraw(){
+  if(scheduleConstellationDraw.pending) return;
+  scheduleConstellationDraw.pending = true;
+  requestAnimationFrame(() => {
+    scheduleConstellationDraw.pending = false;
+    drawConstellations(true);
+  });
+}
+
+function updateSkyAppearance(){
+  const exposureStops = Math.max(-3, Math.min(3, Number($("skyExposure").value) || 0));
+  const contrastPercent = Math.max(25, Math.min(250, Number($("skyContrast").value) || 100));
+  const saturationPercent = Math.max(0, Math.min(300, Number($("skySaturation").value) || 100));
+  const exposureMultiplier = Math.pow(2, exposureStops);
+
+  const sky = $("aladin-lite-div");
+  sky.style.setProperty("--sky-exposure", exposureMultiplier.toFixed(5));
+  sky.style.setProperty("--sky-contrast", (contrastPercent / 100).toFixed(3));
+  sky.style.setProperty("--sky-saturation", (saturationPercent / 100).toFixed(3));
+
+  $("skyExposureNum").value = exposureStops.toFixed(1);
+  $("skyContrastNum").value = String(Math.round(contrastPercent));
+  $("skySaturationNum").value = String(Math.round(saturationPercent));
+  $("exposureMultiplier").textContent = `${exposureMultiplier.toFixed(2)}×`;
+  $("appearanceSummary").textContent =
+    `${exposureStops.toFixed(1)} EV · ${Math.round(contrastPercent)}% · ${Math.round(saturationPercent)}%`;
+}
+
+A.init.then(() => {
+  aladin = A.aladin("#aladin-lite-div", {
+    survey: $("survey").value || "P/DSS2/color",
+    target: $("target").value || "0 +0",
+    fov: +$("manualFov").value || 0.6,
+    showReticle: false,
+    showZoomControl: true,
+    showFullscreenControl: true,
+    showLayersControl: true,
+    showGotoControl: true,
+    cooFrame: "ICRS"
+  });
+
+  try{
+    skySimulation = SkyHorizon.attach(aladin, {onViewChange: () => {
+      update();
+      scheduleConstellationDraw();
+    }});
+  }catch(error){
+    $("horizonStatus").textContent = "The time/horizon layer could not start. Reload to retry; the FOV calculator is still available.";
+    console.error("Time/horizon layer:", error);
+  }
+
+  ["showConstellationLines","showConstellationFigures","showConstellationNames"].forEach(id => {
+    $(id).addEventListener("change", () => {
+      if(constellationEnabled()) ensureConstellationData();
+      scheduleConstellationDraw();
+    });
+  });
+  $("constellationOpacity").addEventListener("input", scheduleConstellationDraw);
+
+  $("skyExposure").addEventListener("input", updateSkyAppearance);
+  $("skyContrast").addEventListener("input", updateSkyAppearance);
+  $("skySaturation").addEventListener("input", updateSkyAppearance);
+
+  $("skyExposureNum").addEventListener("input", () => {
+    const v = Math.max(-3, Math.min(3, Number($("skyExposureNum").value) || 0));
+    $("skyExposure").value = v;
+    updateSkyAppearance();
+  });
+  $("skyContrastNum").addEventListener("input", () => {
+    const v = Math.max(25, Math.min(250, Number($("skyContrastNum").value) || 100));
+    $("skyContrast").value = v;
+    updateSkyAppearance();
+  });
+  $("skySaturationNum").addEventListener("input", () => {
+    const v = Math.max(0, Math.min(300, Number($("skySaturationNum").value) || 100));
+    $("skySaturation").value = v;
+    updateSkyAppearance();
+  });
+
+  $("resetAppearance").addEventListener("click", () => {
+    $("skyExposure").value = 0;
+    $("skyContrast").value = 100;
+    $("skySaturation").value = 100;
+    updateSkyAppearance();
+  });
+
+  updateSkyAppearance();
+
+  $("findLocation").addEventListener("click", () => {
+    const button = $("findLocation");
+    const status = $("locationStatus");
+
+    if(!navigator.geolocation){
+      status.textContent = "Geolocation is not supported by this browser.";
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Locating…";
+    status.textContent = "Waiting for location permission…";
+
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        useObserverLocation(position.coords.latitude, position.coords.longitude);
+        button.disabled = false;
+        button.textContent = "Update my location";
+      },
+      error => {
+        const messages = {
+          1: "Location permission was denied.",
+          2: "Your location could not be determined.",
+          3: "Location request timed out."
+        };
+        status.textContent = messages[error.code] || "Unable to access your location.";
+        button.disabled = false;
+        button.textContent = "Find my location";
+      },
+      {enableHighAccuracy:true, timeout:12000, maximumAge:300000}
+    );
+  });
+
+  $("goto").addEventListener("click", () => {
+    if(!$("target").value.trim()) return;
+    aladin.gotoObject($("target").value);
+    setTimeout(fitAll, 700);
+  });
+  $("target").addEventListener("keydown", e => { if(e.key === "Enter") $("goto").click(); });
+  $("survey").addEventListener("change", () => {
+    if($("survey").value) aladin.setImageSurvey($("survey").value);
+  });
+
+  $("fit").addEventListener("click", fitAll);
+  $("fitMain").addEventListener("click", fitMain);
+  $("applyFov").addEventListener("click", () => {
+    const value = Number($("manualFov").value);
+    if(!(value > 0)) return;
+    aladin.setFoV(value);
+    setTimeout(update, 120);
+  });
+
+  $("telescope").addEventListener("change", () => {
+    activateMainConfiguration();
+    syncTelescopeFields(true);
+    fitAll();
+  });
+  $("nativeFl").addEventListener("input", () => {
+    activateMainConfiguration();
+    syncTelescopeFields(false);
+    update();
+  });
+  $("reducerPreset").addEventListener("change", () => {
+    activateMainConfiguration();
+    const value = $("reducerPreset").value;
+    if(value === ""){
+      $("reducer").value = "";
+      syncTelescopeFields(false);
+      update();
+    }else if(value !== "custom"){
+      $("reducer").value = Number(value).toFixed(3);
+      syncTelescopeFields(false);
+      fitAll();
+    }
+  });
+  $("reducer").addEventListener("input", () => {
+    activateMainConfiguration();
+    $("reducerPreset").value = $("reducer").value === "" ? "" : "custom";
+    syncTelescopeFields(false);
+    fitAll();
+  });
+  $("fl").addEventListener("input", () => {
+    activateMainConfiguration();
+    update();
+  });
+
+  $("addComparison").addEventListener("click", () => addComparisonSetup());
+  $("fitComparison").addEventListener("click", fitComparison);
+  $("clearComparison").addEventListener("click", resetComparisonSetups);
+
+  $("preset").addEventListener("change", applyOagPreset);
+  $("showOag").addEventListener("change", () => { update(); fitAll(); });
+  $("oagPANum").addEventListener("input", () => {
+    const v = Math.max(0, Math.min(359, +$("oagPANum").value || 0));
+    $("oagPA").value = v;
+    update();
+  });
+
+  $("mainPA").addEventListener("input", () => {
+    $("mainPANum").value = $("mainPA").value;
+    syncMosaicRotationFromMain();
+    update();
+  });
+  $("mainPANum").addEventListener("input", () => {
+    const v = Math.max(0, Math.min(359, +$("mainPANum").value || 0));
+    $("mainPA").value = v;
+    syncMosaicRotationFromMain();
+    update();
+  });
+
+  $("guideRot").addEventListener("input", () => {
+    $("guideRotNum").value = $("guideRot").value;
+    update();
+  });
+  $("guideRotNum").addEventListener("input", () => {
+    const v = Math.max(0, Math.min(359, +$("guideRotNum").value || 0));
+    $("guideRot").value = v;
+    update();
+  });
+
+  $("fitMosaic").addEventListener("click", fitMosaic);
+  $("syncMosaicRotation").addEventListener("click", () => {
+    setMosaicRotationSync(!mosaicRotationIsSynced());
+  });
+  $("mosaicTelescope").addEventListener("change", () => {
+    syncMosaicTelescopeFields();
+    update();
+  });
+  $("mosaicReducerPreset").addEventListener("change", () => {
+    const value = $("mosaicReducerPreset").value;
+    if(value === ""){
+      $("mosaicReducer").value = "";
+    }else if(value !== "custom"){
+      $("mosaicReducer").value = Number(value).toFixed(3);
+    }
+    syncMosaicTelescopeFields();
+    update();
+  });
+  $("mosaicReducer").addEventListener("input", () => {
+    $("mosaicReducerPreset").value = $("mosaicReducer").value === "" ? "" : "custom";
+    syncMosaicTelescopeFields();
+    update();
+  });
+  $("mosaicFl").addEventListener("input", update);
+  $("resetMosaic").addEventListener("click", () => {
+    $("mosaicCols").value = 3;
+    $("mosaicRows").value = 2;
+    $("mosaicOverlapX").value = 15;
+    $("mosaicOverlapY").value = 15;
+    $("mosaicOverlapXNum").value = 15;
+    $("mosaicOverlapYNum").value = 15;
+    $("mosaicRotation").value = 0;
+    $("mosaicRotationNum").value = 0;
+    syncMosaicRotationFromMain();
+    $("linkOverlap").checked = true;
+    $("numberTiles").checked = true;
+    $("showMosaic").checked = true;
+    update();
+    fitMosaic();
+  });
+
+  $("mosaicOverlapX").addEventListener("input", () => {
+    $("mosaicOverlapXNum").value = $("mosaicOverlapX").value;
+    if($("linkOverlap").checked){
+      $("mosaicOverlapY").value = $("mosaicOverlapX").value;
+      $("mosaicOverlapYNum").value = $("mosaicOverlapX").value;
+    }
+    update();
+  });
+  $("mosaicOverlapXNum").addEventListener("input", () => {
+    const v = Math.max(0, Math.min(80, +$("mosaicOverlapXNum").value || 0));
+    $("mosaicOverlapX").value = v;
+    if($("linkOverlap").checked){
+      $("mosaicOverlapY").value = v;
+      $("mosaicOverlapYNum").value = v;
+    }
+    update();
+  });
+
+  $("mosaicOverlapY").addEventListener("input", () => {
+    $("mosaicOverlapYNum").value = $("mosaicOverlapY").value;
+    if($("linkOverlap").checked){
+      $("mosaicOverlapX").value = $("mosaicOverlapY").value;
+      $("mosaicOverlapXNum").value = $("mosaicOverlapY").value;
+    }
+    update();
+  });
+  $("mosaicOverlapYNum").addEventListener("input", () => {
+    const v = Math.max(0, Math.min(80, +$("mosaicOverlapYNum").value || 0));
+    $("mosaicOverlapY").value = v;
+    if($("linkOverlap").checked){
+      $("mosaicOverlapX").value = v;
+      $("mosaicOverlapXNum").value = v;
+    }
+    update();
+  });
+
+  $("mosaicRotation").addEventListener("input", () => {
+    $("mosaicRotationNum").value = $("mosaicRotation").value;
+    update();
+  });
+  $("mosaicRotationNum").addEventListener("input", () => {
+    const v = Math.max(0, Math.min(359, +$("mosaicRotationNum").value || 0));
+    $("mosaicRotation").value = v;
+    update();
+  });
+
+  ["showMosaic","numberTiles","linkOverlap"].forEach(id => {
+    $(id).addEventListener("change", update);
+  });
+  ["mosaicCamera","mosaicCols","mosaicRows"].forEach(id => {
+    $(id).addEventListener("input", update);
+    $(id).addEventListener("change", update);
+  });
+
+  document.querySelectorAll("input[name='maincam'], input[name='guidecam']").forEach(el => {
+    el.addEventListener("change", () => {
+      if(el.name === "maincam"){
+        activeMainCameraKey = el.checked ? el.value : (activeMainCameraKey === el.value ? null : activeMainCameraKey);
+        activateMainConfiguration();
+      }
+      update();
+      fitAll();
+    });
+  });
+
+  document.querySelectorAll("input, select").forEach(el => {
+    if(el.closest("#timeSection")) return;
+    if(!["target","manualFov","oagPANum","survey","telescope","preset","reducerPreset","mainPANum","guideRotNum","mosaicTelescope","mosaicReducerPreset","mosaicReducer","mosaicFl","mosaicOverlapX","mosaicOverlapY","mosaicOverlapXNum","mosaicOverlapYNum","mosaicRotation","mosaicRotationNum","mosaicCols","mosaicRows"].includes(el.id) &&
+       !["maincam","guidecam"].includes(el.name || "")){
+      el.addEventListener("input", update);
+    }
+  });
+
+  // Completely disable two-finger scrolling / wheel zoom over the sky viewer.
+  // The left settings panel remains independently scrollable.
+  const viewer = $("viewer");
+  const blockViewerScroll = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+  viewer.addEventListener("wheel", blockViewerScroll, {passive:false});
+  viewer.addEventListener("touchmove", blockViewerScroll, {passive:false});
+  viewer.addEventListener("gesturestart", blockViewerScroll, {passive:false});
+  viewer.addEventListener("gesturechange", blockViewerScroll, {passive:false});
+  viewer.addEventListener("gestureend", blockViewerScroll, {passive:false});
+
+  window.addEventListener("resize", () => {
+    update();
+    scheduleConstellationDraw();
+    // Re-center and preserve the selected framing after a viewport-size change.
+    setTimeout(() => {
+      update();
+      scheduleConstellationDraw();
+    }, 50);
+  });
+  setInterval(update, 250);
+
+  update();
+  // Wait until Aladin and the fixed-height viewer have fully laid out,
+  // then redraw without choosing or populating any equipment.
+  setTimeout(() => {
+    update();
+  }, 1200);
+});
+</script>
+</body>
+</html>

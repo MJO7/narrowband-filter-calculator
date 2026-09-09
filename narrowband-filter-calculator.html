@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Narrowband Filter Transmittance Calculator</title>
+  <!--
+    SPDX-License-Identifier: GPL-3.0-or-later
+
+    Standalone reimplementation of the calculation model used by the open-source
+    Touch-N-Stars NINA narrowband-filter plugin. The numerical model is intentionally
+    kept compatible with the plugin: annular-pupil area weighting, interference-filter
+    angular wavelength shift, and Simpson-rule integration.
+
+    Touch-N-Stars: https://github.com/Touch-N-Stars/Touch-N-Stars
+    This page is independent and is not affiliated with N.I.N.A., Touch-N-Stars,
+    Chroma, Antlia, or Baader.
+  -->
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0a101c;
+      --bg2: #0c1422;
+      --panel: rgba(17, 27, 45, 0.88);
+      --panel2: rgba(13, 22, 37, 0.92);
+      --border: rgba(148, 163, 184, 0.18);
+      --border-strong: rgba(148, 163, 184, 0.28);
+      --text: #f4f7fb;
+      --muted: #9aa9bc;
+      --muted2: #718096;
+      --purple: #a78bfa;
+      --blue: #60a5fa;
+      --cyan: #67e8f9;
+      --green: #73e0ae;
+      --amber: #f7b731;
+      --red: #fb7185;
+      --input: #303b4c;
+      --input2: #263244;
+      --shadow: 0 18px 50px rgba(0,0,0,.28);
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(900px 460px at 85% -10%, rgba(67, 56, 202, .13), transparent 62%),
+        radial-gradient(750px 420px at 10% 0%, rgba(14, 116, 144, .09), transparent 62%),
+        linear-gradient(180deg, var(--bg), var(--bg2));
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+    }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    .app { width: min(1120px, calc(100% - 28px)); margin: 0 auto; padding: 34px 0 48px; }
+    .hero {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 28px;
+      background:
+        linear-gradient(115deg, rgba(91, 33, 182, .38), rgba(30, 64, 175, .32)),
+        rgba(20, 27, 47, .68);
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+    }
+    .hero h1 { margin: 0; font-size: clamp(24px, 4vw, 34px); letter-spacing: -.03em; }
+    .hero p { margin: 8px 0 0; color: #b8c3d5; max-width: 780px; }
+    .home-link { display:inline-block; margin-bottom:14px; color:#bfdbfe; text-decoration:none; font-size:12px; font-weight:700; }
+    .home-link:hover { color:#fff; }
+    .grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr); gap: 18px; align-items: start; }
+    .left { display: grid; gap: 18px; }
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(17,27,45,.91), rgba(11,20,34,.91));
+      box-shadow: inset 0 1px rgba(255,255,255,.018), 0 10px 34px rgba(0,0,0,.14);
+      padding: 22px;
+    }
+    .panel-title { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; font-size: 16px; font-weight: 750; }
+    .icon-dot { width: 10px; height: 10px; border: 2px solid var(--purple); border-radius: 50%; box-shadow: 0 0 16px rgba(167,139,250,.35); }
+    .band-icon { width: 13px; height: 11px; display: grid; grid-template-columns: repeat(3, 3px); align-items: end; gap: 2px; }
+    .band-icon span { display:block; width:3px; border-radius:3px; background:var(--blue); }
+    .band-icon span:nth-child(1){height:5px}.band-icon span:nth-child(2){height:10px}.band-icon span:nth-child(3){height:7px}
+    .fields { display: grid; gap: 12px; }
+    .row { display: grid; grid-template-columns: minmax(170px, 1fr) 164px; align-items: center; gap: 16px; }
+    .label-wrap { min-width: 0; }
+    label, .fake-label { color: #d7dfeb; font-weight: 560; }
+    .subnote { display: block; font-size: 11px; color: var(--muted2); margin-top: 3px; line-height: 1.35; }
+    .stepper { display:grid; grid-template-columns: 34px minmax(0,1fr) 34px; background:var(--input); border:1px solid rgba(255,255,255,.06); border-radius:7px; overflow:hidden; min-height:34px; }
+    .stepper button { border:0; background:rgba(0,0,0,.12); cursor:pointer; transition:.14s ease; color:#c6d0de; }
+    .stepper button:hover { background:rgba(255,255,255,.08); }
+    .stepper input { width:100%; border:0; outline:0; background:transparent; color:#f5f8fc; text-align:center; min-width:0; padding:6px 3px; appearance:textfield; }
+    .stepper input::-webkit-outer-spin-button,.stepper input::-webkit-inner-spin-button{appearance:none;margin:0}
+    .select-row { display:grid; grid-template-columns:minmax(0,1fr) 164px; align-items:center; gap:16px; }
+    .select-shell { grid-column: 1 / -1; display:grid; grid-template-columns:minmax(0,1fr) 164px; gap:10px; }
+    select, .secondary-btn, .upload-label {
+      border:1px solid var(--border-strong); background:var(--input2); color:#e7edf6; border-radius:7px; min-height:36px; padding:7px 11px; outline:none;
+    }
+    select { width:100%; }
+    .secondary-btn { cursor:pointer; transition:.14s ease; }
+    .secondary-btn:hover { background:#334155; border-color:rgba(148,163,184,.4); }
+    .upload-block { margin-top: 3px; padding-top: 3px; }
+    .upload-title { display:flex; align-items:center; gap:6px; margin-bottom:8px; color:#d7dfeb; font-weight:560; }
+    .info { width:15px; height:15px; border:1px solid #718096; color:#94a3b8; border-radius:50%; display:inline-grid; place-items:center; font-size:10px; cursor:help; }
+    .file-line { display:flex; align-items:center; gap:9px; min-width:0; }
+    .upload-label { display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:6px 10px; min-height:32px; }
+    #curveFile { position:absolute; opacity:0; pointer-events:none; width:1px; height:1px; }
+    #fileName { color:var(--muted); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    .curve-mode { display:none; margin-top:9px; gap:8px; align-items:center; color:var(--green); font-size:12px; }
+    .curve-mode.on { display:flex; }
+    .clear-curve { margin-left:auto; border:0; background:transparent; color:#cbd5e1; text-decoration:underline; cursor:pointer; font-size:12px; }
+    .target-buttons { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-top:5px; }
+    .line-btn { border:1px solid transparent; border-radius:5px; cursor:pointer; padding:5px 6px; font-weight:700; font-size:11px; color:#e7edf6; transition:.15s ease; }
+    .line-btn:hover { transform:translateY(-1px); filter:brightness(1.14); }
+    .ha {background:rgba(155,39,78,.55)} .oiii {background:rgba(11,109,135,.58)} .sii {background:rgba(118,98,32,.64)}
+    .result-wrap { position:sticky; top:16px; display:grid; gap:12px; }
+    .result {
+      border:1px solid rgba(52,211,153,.25); border-radius:var(--radius); background:linear-gradient(160deg,rgba(9,73,73,.65),rgba(11,55,55,.72)); box-shadow:0 16px 40px rgba(0,0,0,.18); padding:20px;
+    }
+    .gauge { --pct: 0; width:130px; height:130px; margin:2px auto 14px; border-radius:50%; display:grid; place-items:center; position:relative;
+      background:conic-gradient(var(--amber) calc(var(--pct)*1%), rgba(255,255,255,.12) 0); }
+    .gauge::before { content:""; width:110px; height:110px; border-radius:50%; position:absolute; background:#103b3b; box-shadow:inset 0 0 18px rgba(0,0,0,.18); }
+    .gauge-value { position:relative; z-index:1; text-align:center; font-size:28px; line-height:1; font-weight:780; letter-spacing:-.03em; }
+    .gauge-value span { display:block; font-size:11px; color:#b7c6c8; margin-top:7px; font-weight:600; letter-spacing:0; }
+    .success { display:flex; align-items:center; justify-content:center; gap:6px; color:#9ce9c6; font-size:12px; margin-bottom:17px; }
+    .error { color:#fecaca; background:rgba(127,29,29,.27); border:1px solid rgba(248,113,113,.28); padding:9px 10px; border-radius:8px; margin-bottom:14px; font-size:12px; display:none; }
+    .error.on { display:block; }
+    .metric { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:5px 0; color:#9fb3b7; font-size:12px; }
+    .metric strong { color:#d3ecea; font-weight:580; text-align:right; }
+    .reset { width:100%; }
+    .assumption {
+      border:1px solid var(--border); border-radius:12px; background:rgba(14,22,36,.74); padding:13px 14px; color:var(--muted); font-size:11.5px; line-height:1.45;
+    }
+    .assumption strong { color:#d7dfeb; }
+    .chart-panel { grid-column:1 / -1; }
+    .chart-wrap { position:relative; height:330px; width:100%; }
+    canvas { width:100%; height:100%; display:block; }
+    .legend { display:flex; flex-wrap:wrap; gap:12px 18px; margin-top:11px; color:var(--muted); font-size:11.5px; }
+    .legend-item { display:flex; align-items:center; gap:6px; }
+    .swatch { width:18px; height:3px; border-radius:3px; background:#9da8ff; }.swatch.edge{background:#65d8e8}.swatch.target{background:#f59e0b}.swatch.avg{background:#74e0ae}
+    details { border:1px solid var(--border); border-radius:12px; padding:12px 14px; background:rgba(10,17,29,.64); }
+    details summary { cursor:pointer; color:#dce5ef; font-weight:650; }
+    details p, details li { color:var(--muted); line-height:1.55; }
+    code { background:rgba(148,163,184,.11); border:1px solid rgba(148,163,184,.12); padding:1px 4px; border-radius:4px; color:#dbeafe; }
+    footer { color:#6f8094; font-size:11px; margin-top:18px; line-height:1.5; text-align:center; }
+    footer a { color:#8299b3; }
+    .pill { display:inline-block; border:1px solid rgba(167,139,250,.22); background:rgba(91,33,182,.14); color:#c4b5fd; border-radius:999px; padding:2px 7px; font-size:10px; margin-left:6px; vertical-align:1px; }
+    @media (max-width: 830px) {
+      .grid { grid-template-columns:1fr; }
+      .result-wrap { position:static; }
+      .chart-panel { grid-column:auto; }
+    }
+    @media (max-width: 560px) {
+      .app { width:min(100% - 18px, 1120px); padding-top:14px; }
+      .hero,.panel { padding:17px; }
+      .row { grid-template-columns:1fr; gap:6px; }
+      .select-shell { grid-template-columns:1fr; }
+      .chart-wrap { height:280px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="hero">
+      <a class="home-link" href="index.html">← All calculators</a>
+      <h1>Filter Calculator</h1>
+      <p>Calculate narrowband filter transmission through a converging telescope beam, including central obstruction and angle-dependent bandpass shift.</p>
+    </header>
+
+    <section class="grid">
+      <div class="left">
+        <section class="panel">
+          <h2 class="panel-title"><span class="icon-dot"></span> Optical Parameters</h2>
+          <div class="fields">
+            <div class="row">
+              <label for="aperture">Aperture (mm)</label>
+              <div class="stepper"><button data-step="aperture" data-dir="-1">−</button><input id="aperture" type="number" min="10" max="2000" step="1"><button data-step="aperture" data-dir="1">+</button></div>
+            </div>
+            <div class="row">
+              <label for="focalLength">Focal Length (mm)</label>
+              <div class="stepper"><button data-step="focalLength" data-dir="-1">−</button><input id="focalLength" type="number" min="100" max="10000" step="10"><button data-step="focalLength" data-dir="1">+</button></div>
+            </div>
+            <div class="row">
+              <div class="label-wrap"><label for="peakTransmittance">Peak Transmittance</label><span class="subnote">0–1; ignored when a measured curve is loaded</span></div>
+              <div class="stepper"><button data-step="peakTransmittance" data-dir="-1">−</button><input id="peakTransmittance" type="number" min="0" max="1" step="0.01"><button data-step="peakTransmittance" data-dir="1">+</button></div>
+            </div>
+            <div class="row">
+              <div class="label-wrap"><label for="effectiveRefractiveIndex">Refractive Index</label><span class="subnote">Effective refractive index, n<sub>eff</sub></span></div>
+              <div class="stepper"><button data-step="effectiveRefractiveIndex" data-dir="-1">−</button><input id="effectiveRefractiveIndex" type="number" min="1.1" max="2.5" step="0.05"><button data-step="effectiveRefractiveIndex" data-dir="1">+</button></div>
+            </div>
+            <div class="row">
+              <div class="label-wrap"><label for="obstructionDiameter">Central Obstruction (mm)</label><span class="subnote">Physical obstruction diameter, not percentage</span></div>
+              <div class="stepper"><button data-step="obstructionDiameter" data-dir="-1">−</button><input id="obstructionDiameter" type="number" min="0" step="1"><button data-step="obstructionDiameter" data-dir="1">+</button></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title"><span class="band-icon"><span></span><span></span><span></span></span> Bandpass Characteristics</h2>
+          <div class="fields">
+            <div>
+              <div class="fake-label" style="margin-bottom:8px">Popular Filters</div>
+              <div class="select-shell">
+                <select id="preset"></select>
+                <button id="clearPreset" class="secondary-btn">Clear Selection</button>
+              </div>
+            </div>
+
+            <div class="upload-block">
+              <div class="upload-title">Custom Bandpass Curve <span class="info" title="Two columns: wavelength (nm) and transmission. Comma, semicolon, tab, or whitespace separated. Transmission can be 0–1 or 0–100%.">i</span></div>
+              <div class="file-line">
+                <label class="upload-label" for="curveFile">Choose File</label>
+                <input id="curveFile" type="file" accept=".csv,.txt,.dat,text/csv,text/plain">
+                <span id="fileName">No file chosen</span>
+              </div>
+              <div id="curveMode" class="curve-mode"><span>✓ Measured curve active</span><button id="clearCurve" class="clear-curve">remove</button></div>
+            </div>
+
+            <div class="row">
+              <label for="bandpassCenter">Bandpass Center (nm)</label>
+              <div class="stepper"><button data-step="bandpassCenter" data-dir="-1">−</button><input id="bandpassCenter" type="number" min="400" max="900" step="0.5"><button data-step="bandpassCenter" data-dir="1">+</button></div>
+            </div>
+            <div class="row">
+              <label for="fwhm">FWHM (nm)</label>
+              <div class="stepper"><button data-step="fwhm" data-dir="-1">−</button><input id="fwhm" type="number" min="0.5" max="20" step="0.1"><button data-step="fwhm" data-dir="1">+</button></div>
+            </div>
+            <div class="row">
+              <label for="flatTop">Flat Top (nm)</label>
+              <div class="stepper"><button data-step="flatTop" data-dir="-1">−</button><input id="flatTop" type="number" min="0.01" step="0.1"><button data-step="flatTop" data-dir="1">+</button></div>
+            </div>
+            <div class="row">
+              <div class="label-wrap">
+                <label for="targetWavelength">Target Wavelength (nm)</label>
+                <div class="target-buttons"><button class="line-btn ha" data-target="656.3">[Hα]</button><button class="line-btn oiii" data-target="500.7">[OIII]</button><button class="line-btn sii" data-target="672.4">[SII]</button></div>
+              </div>
+              <div class="stepper"><button data-step="targetWavelength" data-dir="-1">−</button><input id="targetWavelength" type="number" min="400" max="900" step="0.1"><button data-step="targetWavelength" data-dir="1">+</button></div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="result-wrap">
+        <section class="result">
+          <div id="gauge" class="gauge"><div class="gauge-value"><b id="transmission">—</b>%<span>area-weighted transmission</span></div></div>
+          <div id="success" class="success" style="display:none">✓ Transmission calculated successfully</div>
+          <div id="errors" class="error"></div>
+          <div class="metric"><span>Wavelength Range</span><strong id="wavelengthRange">—</strong></div>
+          <div class="metric"><span>Flat Top Range</span><strong id="flatTopRange">—</strong></div>
+          <div class="metric"><span>f/Ratio</span><strong id="fRatio">—</strong></div>
+          <div class="metric"><span>Obstruction</span><strong id="obstructionPct">—</strong></div>
+          <div class="metric"><span>Edge-ray blue shift</span><strong id="edgeShift">—</strong></div>
+        </section>
+        <button id="reset" class="secondary-btn reset">Clear All</button>
+        <div id="tnsCheck" class="tns-check"><strong>Touch-N-Stars engine check:</strong> running reference calculations…</div>
+        <div class="assumption"><strong>Preset note.</strong> Chroma values labeled “TNS” follow the current Touch-N-Stars presets. Antlia presets use manufacturer-published CWL/FWHM/transmission specifications; the 4.5nm EDGE presets use 656.3/500.7/671.6 nm centers, 4.5 nm FWHM, and conservative published transmission floors of 90%/85%/90% for Hα/OIII/SII. Antlia states EDGE can be used down to about f/3 with minimal signal loss. Because Antlia does not publish a calculator-ready coating <em>n<sub>eff</sub></em> or full numerical spectral curve, <em>n<sub>eff</sub>=1.8</em> and a 1.0 nm idealized flat-top remain explicit model assumptions. For Baader f/2/f/3 fast filters, the calculator applies a red pre-shift appropriate to the nominal design f/ratio before the same pupil-angle integration.</div>
+      </aside>
+
+      <section class="panel chart-panel">
+        <h2 class="panel-title"><span class="band-icon"><span></span><span></span><span></span></span> Bandpass Curve</h2>
+        <div class="chart-wrap"><canvas id="chart"></canvas></div>
+        <div class="legend">
+          <span class="legend-item"><span class="swatch"></span> Nominal normal-incidence curve</span>
+          <span class="legend-item"><span class="swatch edge"></span> Outer-ray shifted curve</span>
+          <span class="legend-item"><span class="swatch avg"></span> Pupil-averaged curve</span>
+          <span class="legend-item"><span class="swatch target"></span> Target wavelength</span>
+        </div>
+      </section>
+
+      <section class="panel chart-panel">
+        <details>
+          <summary>How the calculation works</summary>
+          <p>The model treats the entrance pupil as an annulus. For each pupil radius <code>r</code>, the ray angle is <code>atan(r / focalLength)</code>. The interference filter center shifts blue according to <code>λ′ = λ₀ √(1 − sin²θ / n_eff²)</code>. Transmission at the selected emission line is then weighted by each infinitesimal annular area <code>2πr dr</code> and numerically integrated with Simpson's rule.</p>
+          <p>With no measured curve loaded, the passband is a flat-top profile with Gaussian shoulders. With a measured curve loaded, the uploaded curve is shifted by the same angle-of-incidence model and linearly interpolated.</p>
+        </details>
+      </section>
+    </section>
+
+    <footer>
+      Standalone calculator • calculation model reimplemented from the GPL-3.0 Touch-N-Stars narrowband-filter plugin • not affiliated with N.I.N.A., Touch-N-Stars, Chroma, Antlia, or Baader.
+    </footer>
+  </main>
+
+<script>
+(() => {
+  'use strict';
+
+  const presets = [
+    // Current Touch-N-Stars built-in Chroma presets.
+    { group: 'Chroma — Touch-N-Stars presets', name: 'Chroma 3nm [Hα] — TNS', values: { bandpassCenter:656.5, fwhm:3.0, flatTop:1.9, targetWavelength:656.3, peakTransmittance:0.99, effectiveRefractiveIndex:2.0 } },
+    { group: 'Chroma — Touch-N-Stars presets', name: 'Chroma 3nm [OIII] — TNS', values: { bandpassCenter:500.5, fwhm:3.1, flatTop:1.8, targetWavelength:500.7, peakTransmittance:0.99, effectiveRefractiveIndex:2.0 } },
+    { group: 'Chroma — Touch-N-Stars presets', name: 'Chroma 3nm [SII] — TNS', values: { bandpassCenter:672.4, fwhm:2.95, flatTop:2.0, targetWavelength:672.4, peakTransmittance:0.99, effectiveRefractiveIndex:2.0 } },
+
+    // Antlia's published center/FWHM/peak specs. n_eff + flatTop are explicit model assumptions.
+    { group: 'Antlia 3nm Pro', name: 'Antlia 3nm Pro [Hα]', values: { bandpassCenter:656.3, fwhm:3.0, flatTop:1.0, targetWavelength:656.3, peakTransmittance:0.88, effectiveRefractiveIndex:1.8 }, assumption:true },
+    { group: 'Antlia 3nm Pro', name: 'Antlia 3nm Pro [OIII]', values: { bandpassCenter:500.7, fwhm:3.0, flatTop:1.0, targetWavelength:500.7, peakTransmittance:0.85, effectiveRefractiveIndex:1.8 }, assumption:true },
+    { group: 'Antlia 3nm Pro', name: 'Antlia 3nm Pro [SII]', values: { bandpassCenter:672.4, fwhm:3.0, flatTop:1.0, targetWavelength:672.4, peakTransmittance:0.88, effectiveRefractiveIndex:1.8 }, assumption:true },
+
+    { group: 'Antlia 3nm Pro Highspeed', name: 'Antlia 3nm Pro Highspeed [Hα]', values: { bandpassCenter:657.5, fwhm:3.0, flatTop:1.0, targetWavelength:656.3, peakTransmittance:0.90, effectiveRefractiveIndex:1.8 }, assumption:true },
+    { group: 'Antlia 3nm Pro Highspeed', name: 'Antlia 3nm Pro Highspeed [OIII]', values: { bandpassCenter:501.9, fwhm:3.0, flatTop:1.0, targetWavelength:500.7, peakTransmittance:0.90, effectiveRefractiveIndex:1.8 }, assumption:true },
+    { group: 'Antlia 3nm Pro Highspeed', name: 'Antlia 3nm Pro Highspeed [SII]', values: { bandpassCenter:673.6, fwhm:3.0, flatTop:1.0, targetWavelength:672.4, peakTransmittance:0.90, effectiveRefractiveIndex:1.8 }, assumption:true },
+
+    // Antlia 4.5nm EDGE: manufacturer-published CWL/FWHM and guaranteed transmission floors.
+    // Antlia states the EDGE series is usable down to approximately f/3 with minimal loss.
+    // n_eff is not published; 1.8 is retained as the coating-model assumption. The 1.0nm flat-top
+    // approximates Antlia's stated guaranteed high-transmission span within 1nm of the center.
+    { group: 'Antlia 4.5nm EDGE', name: 'Antlia 4.5nm EDGE [Hα]', values: { bandpassCenter:656.3, fwhm:4.5, flatTop:1.0, targetWavelength:656.3, peakTransmittance:0.90, effectiveRefractiveIndex:1.8 }, assumption:true },
+    { group: 'Antlia 4.5nm EDGE', name: 'Antlia 4.5nm EDGE [OIII]', values: { bandpassCenter:500.7, fwhm:4.5, flatTop:1.0, targetWavelength:500.7, peakTransmittance:0.85, effectiveRefractiveIndex:1.8 }, assumption:true },
+    { group: 'Antlia 4.5nm EDGE', name: 'Antlia 4.5nm EDGE [SII]', values: { bandpassCenter:671.6, fwhm:4.5, flatTop:1.0, targetWavelength:671.6, peakTransmittance:0.90, effectiveRefractiveIndex:1.8 }, assumption:true },
+
+    // Baader CMOS-optimized fast-system filters. Baader publishes the line CWL, FWHM, and supported f/ratio ranges,
+    // while the physical normal-incidence pre-shift and detailed spectral curve are proprietary/not published as calculator-ready numbers.
+    // For this incidence-angle model, bandpassCenter is therefore red-pre-shifted so the area-weighted passband is centered
+    // on the emission line at the nominal design f/ratio (f/2 or f/3), using n_eff=1.8. This makes the preset behave as a
+    // fast-system filter rather than incorrectly treating the published astronomical line wavelength as a normal-incidence CWL.
+    { group: 'Baader 6.5nm f/2 Highspeed — CMOS optimized', name: 'Baader f/2 Highspeed 6.5nm [Hα]', values: { bandpassCenter:659.34, fwhm:6.5, flatTop:2.5, targetWavelength:656.28, peakTransmittance:0.90, effectiveRefractiveIndex:1.8 }, assumption:true },
+    { group: 'Baader 6.5nm f/2 Highspeed — CMOS optimized', name: 'Baader f/2 Highspeed 6.5nm [OIII]', values: { bandpassCenter:503.04, fwhm:6.5, flatTop:2.5, targetWavelength:500.70, peakTransmittance:0.90, effectiveRefractiveIndex:1.8 }, assumption:true },
+    { group: 'Baader 6.5nm f/2 Highspeed — CMOS optimized', name: 'Baader f/2 Highspeed 6.5nm [SII]', values: { bandpassCenter:674.73, fwhm:6.5, flatTop:2.5, targetWavelength:671.60, peakTransmittance:0.90, effectiveRefractiveIndex:1.8 }, assumption:true },
+
+    { group: 'Baader f/3 Ultra-Highspeed — CMOS optimized', name: 'Baader f/3 Ultra-Highspeed 3.5nm [Hα]', values: { bandpassCenter:657.67, fwhm:3.5, flatTop:1.2, targetWavelength:656.28, peakTransmittance:0.90, effectiveRefractiveIndex:1.8 }, assumption:true },
+    { group: 'Baader f/3 Ultra-Highspeed — CMOS optimized', name: 'Baader f/3 Ultra-Highspeed 4nm [OIII]', values: { bandpassCenter:501.76, fwhm:4.0, flatTop:1.4, targetWavelength:500.70, peakTransmittance:0.90, effectiveRefractiveIndex:1.8 }, assumption:true },
+    { group: 'Baader f/3 Ultra-Highspeed — CMOS optimized', name: 'Baader f/3 Ultra-Highspeed 4nm [SII]', values: { bandpassCenter:673.02, fwhm:4.0, flatTop:1.4, targetWavelength:671.60, peakTransmittance:0.90, effectiveRefractiveIndex:1.8 }, assumption:true },
+
+    { group: 'Baader f/2 Ultra-Highspeed — CMOS optimized', name: 'Baader f/2 Ultra-Highspeed 3.5nm [Hα]', values: { bandpassCenter:659.34, fwhm:3.5, flatTop:1.2, targetWavelength:656.28, peakTransmittance:0.90, effectiveRefractiveIndex:1.8 }, assumption:true },
+    { group: 'Baader f/2 Ultra-Highspeed — CMOS optimized', name: 'Baader f/2 Ultra-Highspeed 4nm [OIII]', values: { bandpassCenter:503.04, fwhm:4.0, flatTop:1.4, targetWavelength:500.70, peakTransmittance:0.90, effectiveRefractiveIndex:1.8 }, assumption:true },
+    { group: 'Baader f/2 Ultra-Highspeed — CMOS optimized', name: 'Baader f/2 Ultra-Highspeed 4nm [SII]', values: { bandpassCenter:674.73, fwhm:4.0, flatTop:1.4, targetWavelength:671.60, peakTransmittance:0.90, effectiveRefractiveIndex:1.8 }, assumption:true }
+  ];
+
+  const ids = ['aperture','focalLength','peakTransmittance','effectiveRefractiveIndex','obstructionDiameter','bandpassCenter','fwhm','flatTop','targetWavelength'];
+  const el = Object.fromEntries(ids.map(k => [k, document.getElementById(k)]));
+  const presetEl = document.getElementById('preset');
+  const fileInput = document.getElementById('curveFile');
+  let loadedCurveData = null;
+
+  function populatePresets() {
+    const blank = document.createElement('option');
+    blank.value = '';
+    blank.textContent = 'Select a popular filter…';
+    presetEl.appendChild(blank);
+    const groups = [...new Set(presets.map(p => p.group))];
+    groups.forEach(groupName => {
+      const og = document.createElement('optgroup');
+      og.label = groupName;
+      presets.forEach((p, i) => {
+        if (p.group !== groupName) return;
+        const o = document.createElement('option');
+        o.value = String(i);
+        o.textContent = p.name + (p.assumption ? ' *' : '');
+        og.appendChild(o);
+      });
+      presetEl.appendChild(og);
+    });
+    presetEl.value = '';
+  }
+
+  function setValues(values, markCustom=true) {
+    for (const [key, value] of Object.entries(values)) {
+      if (el[key]) el[key].value = value;
+    }
+    syncDynamicLimits();
+    if (markCustom) presetEl.value = '';
+    calculateAndRender();
+  runTnsRegressionChecks();
+  }
+
+  function getParams() {
+    const p = {};
+    for (const k of ids) p[k] = Number(el[k].value);
+    p.loadedCurveData = loadedCurveData;
+    return p;
+  }
+
+  function syncDynamicLimits() {
+    const aperture = Number(el.aperture.value) || 0;
+    el.obstructionDiameter.max = String(aperture * 0.9); // matches TNS UI control
+    const fwhm = Number(el.fwhm.value) || 0;
+    el.flatTop.max = String(fwhm);
+  }
+
+  function normalPdf(x, mean, stddev) {
+    if (stddev === 0) return x === mean ? Infinity : 0;
+    const exponent = -Math.pow(x - mean, 2) / (2 * Math.pow(stddev, 2));
+    return Math.exp(exponent) / (stddev * Math.sqrt(2 * Math.PI));
+  }
+
+  function simpsonsRule(fn, a, b, n=1000) {
+    if (n % 2 !== 0) n++;
+    if (a === b) return 0;
+    const h = (b - a) / n;
+    let sum = fn(a) + fn(b);
+    let odd = 0, even = 0;
+    for (let i=1; i<n; i+=2) odd += fn(a + i*h);
+    for (let i=2; i<n-1; i+=2) even += fn(a + i*h);
+    return (h/3) * (sum + 4*odd + 2*even);
+  }
+
+  function makeInterpolator(curveData) {
+    const sorted = [...curveData].sort((a,b) => a.wavelength-b.wavelength);
+    return wavelength => {
+      if (wavelength < sorted[0].wavelength || wavelength > sorted[sorted.length-1].wavelength) return 0;
+      // Binary search; mathematically equivalent to the plugin's linear interpolation.
+      let lo=0, hi=sorted.length-1;
+      while (hi-lo > 1) {
+        const mid=(lo+hi)>>1;
+        if (sorted[mid].wavelength <= wavelength) lo=mid; else hi=mid;
+      }
+      const a=sorted[lo], b=sorted[hi];
+      if (b.wavelength === a.wavelength) return a.transmission;
+      const t=(wavelength-a.wavelength)/(b.wavelength-a.wavelength);
+      return a.transmission*(1-t)+b.transmission*t;
+    };
+  }
+
+  function shiftCenter(center, r, focalLength, nEff) {
+    const theta = Math.atan(r / focalLength);
+    const s = Math.sin(theta);
+    return center * Math.sqrt(1 - (s*s)/(nEff*nEff));
+  }
+
+  function parametricTransmissionAt(wavelength, shiftedCenter, p) {
+    const stddev=(p.fwhm-p.flatTop)/2.355;
+    const normalMax=normalPdf(p.bandpassCenter,p.bandpassCenter,stddev);
+    let ft;
+    if (wavelength < shiftedCenter-p.flatTop/2) {
+      const mean=shiftedCenter-p.flatTop/2;
+      ft=(normalPdf(wavelength,mean,stddev)/normalMax)*p.peakTransmittance;
+    } else if (wavelength > shiftedCenter+p.flatTop/2) {
+      const mean=shiftedCenter+p.flatTop/2;
+      ft=(normalPdf(wavelength,mean,stddev)/normalMax)*p.peakTransmittance;
+    } else ft=p.peakTransmittance;
+    return ft;
+  }
+
+  // Compatibility implementation of Touch-N-Stars calculateTransmissionContinuous().
+  function calculateTransmissionContinuous(p, wavelengthOverride=null) {
+    const obstructionRatio = p.aperture > 0 ? p.obstructionDiameter / p.aperture : 0;
+    const clampedObstructionRatio = Math.max(0, Math.min(obstructionRatio, 0.99));
+    const interp = p.loadedCurveData && p.loadedCurveData.length ? makeInterpolator(p.loadedCurveData) : null;
+    const target = wavelengthOverride == null ? p.targetWavelength : wavelengthOverride;
+    const rOuter=p.aperture/2;
+    const rInner=rOuter*clampedObstructionRatio;
+
+    function integrand(r) {
+      const shifted = shiftCenter(p.bandpassCenter,r,p.focalLength,p.effectiveRefractiveIndex);
+      let transmission;
+      if (interp) {
+        const relative=target-shifted;
+        const effectiveWavelength=p.bandpassCenter+relative;
+        transmission=interp(effectiveWavelength);
+      } else {
+        transmission=parametricTransmissionAt(target, shifted, p);
+      }
+      return 2*Math.PI*r*transmission;
+    }
+    const weighted=simpsonsRule(integrand,rInner,rOuter,1000);
+    const totalArea=Math.PI*(rOuter*rOuter-rInner*rInner);
+    return totalArea>0 ? weighted/totalArea : 0;
+  }
+
+  // Exact regression checks against Touch-N-Stars reference frames.
+  // These use the same public calculateTransmissionContinuous algorithm and catch accidental math changes.
+  function runTnsRegressionChecks() {
+    const cases = [
+      {
+        label:'video reference', expectedPct:52.0, tolerancePct:0.05,
+        p:{aperture:203, focalLength:400, peakTransmittance:0.900, effectiveRefractiveIndex:1.80, obstructionDiameter:0, bandpassCenter:672.50, fwhm:7.00, flatTop:2.50, targetWavelength:672.4, loadedCurveData:null}
+      }
+    ];
+    const results = cases.map(c => {
+      const pct = calculateTransmissionContinuous(c.p)*100;
+      return {...c, pct, pass:Math.abs(pct-c.expectedPct) <= c.tolerancePct};
+    });
+    const ok=results.every(r=>r.pass);
+    const node=document.getElementById('tnsCheck');
+    if(node){
+      node.classList.toggle('fail',!ok);
+      node.innerHTML = ok
+        ? `<strong>Touch-N-Stars engine check: PASS</strong><br>Reference calculation: ${results[0].pct.toFixed(1)}% (52.0%)`
+        : `<strong>Touch-N-Stars engine check: FAILED</strong><br>${results.map(r=>`${r.label}: ${r.pct.toFixed(3)}% vs ${r.expectedPct.toFixed(1)}%`).join(' • ')}`;
+    }
+    if(!ok) console.error('Touch-N-Stars regression check failed',results);
+    return {ok,results};
+  }
+
+  function validate(p) {
+    const errors=[];
+    if (p.aperture <= 0) errors.push('Aperture must be positive');
+    if (p.bandpassCenter <= 0) errors.push('Bandpass center must be positive');
+    if (p.fwhm <= 0) errors.push('FWHM must be positive');
+    if (p.flatTop <= 0) errors.push('Flat top must be positive');
+    if (p.flatTop > p.fwhm) errors.push('Flat top cannot exceed FWHM');
+    if (p.effectiveRefractiveIndex <= 1) errors.push('Refractive index must be > 1');
+    if (p.peakTransmittance < 0 || p.peakTransmittance > 1) errors.push('Peak transmittance must be between 0 and 1');
+    if (p.focalLength <= 0) errors.push('Focal length must be positive');
+    if (p.targetWavelength <= 0) errors.push('Target wavelength must be positive');
+    if (p.obstructionDiameter < 0 || p.obstructionDiameter >= p.aperture) errors.push('Obstruction diameter must be between 0 and aperture diameter');
+    if (![p.aperture,p.bandpassCenter,p.fwhm,p.flatTop,p.effectiveRefractiveIndex,p.peakTransmittance,p.focalLength,p.targetWavelength,p.obstructionDiameter].every(Number.isFinite)) errors.push('All fields must contain valid numbers');
+    return errors;
+  }
+
+  function fmt(n, d=1) { return Number.isFinite(n) ? n.toFixed(d) : '—'; }
+
+  let drawRaf=0;
+  function renderBlankState() {
+    const err=document.getElementById('errors');
+    err.textContent=''; err.classList.remove('on');
+    document.getElementById('success').style.display='none';
+    document.getElementById('transmission').textContent='—';
+    document.getElementById('gauge').style.setProperty('--pct',0);
+    ['wavelengthRange','flatTopRange','fRatio','obstructionPct','edgeShift'].forEach(id => {
+      document.getElementById(id).textContent='—';
+    });
+    cancelAnimationFrame(drawRaf);
+    drawRaf=requestAnimationFrame(() => {
+      const canvas=document.getElementById('chart');
+      const ctx=canvas.getContext('2d');
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+    });
+  }
+
+  function calculateAndRender() {
+    if (ids.every(id => el[id].value === '')) {
+      renderBlankState();
+      return;
+    }
+    syncDynamicLimits();
+    const p=getParams();
+    const errors=validate(p);
+    const err=document.getElementById('errors');
+    const ok=document.getElementById('success');
+    if (errors.length) {
+      err.textContent=errors.join(' • '); err.classList.add('on'); ok.style.display='none';
+      document.getElementById('transmission').textContent='—';
+      document.getElementById('gauge').style.setProperty('--pct',0);
+    } else {
+      err.classList.remove('on'); ok.style.display='flex';
+      let t=calculateTransmissionContinuous(p);
+      if (!Number.isFinite(t)) t=0;
+      const pct=Math.max(0,Math.min(100,t*100));
+      document.getElementById('transmission').textContent=pct.toFixed(1);
+      document.getElementById('gauge').style.setProperty('--pct',pct);
+    }
+    document.getElementById('wavelengthRange').textContent=`${fmt(p.bandpassCenter-p.fwhm/2)} - ${fmt(p.bandpassCenter+p.fwhm/2)} nm`;
+    document.getElementById('flatTopRange').textContent=`${fmt(p.bandpassCenter-p.flatTop/2)} - ${fmt(p.bandpassCenter+p.flatTop/2)} nm`;
+    document.getElementById('fRatio').textContent=(p.aperture>0 && p.focalLength>0) ? `f/${fmt(p.focalLength/p.aperture)}` : '—';
+    document.getElementById('obstructionPct').textContent=p.aperture>0 ? `${fmt(100*p.obstructionDiameter/p.aperture)}%` : '—';
+    const edgeCenter=(p.aperture>0&&p.focalLength>0&&p.effectiveRefractiveIndex>1) ? shiftCenter(p.bandpassCenter,p.aperture/2,p.focalLength,p.effectiveRefractiveIndex) : NaN;
+    document.getElementById('edgeShift').textContent=Number.isFinite(edgeCenter) ? `${fmt(edgeCenter-p.bandpassCenter,2)} nm` : '—';
+    cancelAnimationFrame(drawRaf); drawRaf=requestAnimationFrame(() => drawChart(p, errors.length===0));
+  }
+
+  function drawChart(p, valid) {
+    const canvas=document.getElementById('chart');
+    const rect=canvas.getBoundingClientRect();
+    const dpr=Math.max(1,Math.min(2,window.devicePixelRatio||1));
+    const width=Math.max(300,Math.round(rect.width));
+    const height=Math.max(220,Math.round(rect.height));
+    canvas.width=Math.round(width*dpr); canvas.height=Math.round(height*dpr);
+    const ctx=canvas.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,width,height);
+    const pad={l:53,r:18,t:18,b:40};
+    const w=width-pad.l-pad.r,h=height-pad.t-pad.b;
+
+    let xMin=p.bandpassCenter-Math.max(5,p.fwhm*2.2);
+    let xMax=p.bandpassCenter+Math.max(5,p.fwhm*2.2);
+    if (p.loadedCurveData?.length) {
+      const ws=p.loadedCurveData.map(x=>x.wavelength);
+      xMin=Math.min(...ws); xMax=Math.max(...ws);
+    }
+    const edge=valid?shiftCenter(p.bandpassCenter,p.aperture/2,p.focalLength,p.effectiveRefractiveIndex):p.bandpassCenter;
+    xMin=Math.min(xMin,edge-Math.max(2,p.fwhm));
+    xMax=Math.max(xMax,p.targetWavelength+1,p.bandpassCenter+Math.max(2,p.fwhm));
+    xMin=Math.min(xMin,p.targetWavelength-1);
+    if (!(xMax>xMin)) {xMin=p.bandpassCenter-5;xMax=p.bandpassCenter+5;}
+    const yMax=Math.max(1, p.peakTransmittance*1.08, ...(p.loadedCurveData||[]).map(x=>x.transmission*1.08));
+    const X=x=>pad.l+(x-xMin)/(xMax-xMin)*w;
+    const Y=y=>pad.t+h-(y/yMax)*h;
+
+    // grid
+    ctx.lineWidth=1; ctx.strokeStyle='rgba(148,163,184,.12)'; ctx.fillStyle='#7e8ea3'; ctx.font='11px ui-sans-serif,system-ui';
+    for(let i=0;i<=5;i++){
+      const y=i/5*yMax; const py=Y(y); ctx.beginPath();ctx.moveTo(pad.l,py);ctx.lineTo(width-pad.r,py);ctx.stroke();
+      ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillText(`${Math.round(y*100)}%`,pad.l-8,py);
+    }
+    for(let i=0;i<=5;i++){
+      const x=xMin+i/5*(xMax-xMin); const px=X(x); ctx.beginPath();ctx.moveTo(px,pad.t);ctx.lineTo(px,pad.t+h);ctx.stroke();
+      ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText(x.toFixed((xMax-xMin)<12?1:0),px,pad.t+h+9);
+    }
+    ctx.fillStyle='#8fa0b6';ctx.textAlign='center';ctx.fillText('Wavelength (nm)',pad.l+w/2,height-5);
+
+    if(!valid) return;
+    const interp=p.loadedCurveData?.length?makeInterpolator(p.loadedCurveData):null;
+    function curveAt(lambda, shiftedCenter){
+      if(interp){
+        const relative=lambda-shiftedCenter;
+        return interp(p.bandpassCenter+relative);
+      }
+      return parametricTransmissionAt(lambda,shiftedCenter,p);
+    }
+    function strokeCurve(fn,color,widthLine=2){
+      ctx.beginPath(); let first=true;
+      const N=Math.max(250,Math.round(w));
+      for(let i=0;i<=N;i++){
+        const x=xMin+i/N*(xMax-xMin); let y=fn(x); if(!Number.isFinite(y))y=0; y=Math.max(0,y);
+        if(first){ctx.moveTo(X(x),Y(y));first=false;} else ctx.lineTo(X(x),Y(y));
+      }
+      ctx.strokeStyle=color;ctx.lineWidth=widthLine;ctx.stroke();
+    }
+    strokeCurve(x=>curveAt(x,p.bandpassCenter),'#9da8ff',2);
+    strokeCurve(x=>curveAt(x,edge),'#65d8e8',1.7);
+
+    // Pupil-averaged curve: fewer Simpson intervals per plotted wavelength for UI speed.
+    const pFast={...p};
+    function averageFast(target){
+      const obs=Math.max(0,Math.min(p.obstructionDiameter/p.aperture,.99));
+      const ro=p.aperture/2, ri=ro*obs;
+      const f=r=>2*Math.PI*r*curveAt(target,shiftCenter(p.bandpassCenter,r,p.focalLength,p.effectiveRefractiveIndex));
+      const total=Math.PI*(ro*ro-ri*ri); return total?simpsonsRule(f,ri,ro,120)/total:0;
+    }
+    strokeCurve(x=>averageFast(x),'#74e0ae',2.2);
+
+    // target line
+    const tx=X(p.targetWavelength); ctx.save(); ctx.setLineDash([6,5]); ctx.strokeStyle='#f59e0b';ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(tx,pad.t);ctx.lineTo(tx,pad.t+h);ctx.stroke();ctx.restore();
+    ctx.fillStyle='#f7b84b';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(`${p.targetWavelength.toFixed(1)} nm`,Math.max(pad.l+30,Math.min(width-pad.r-30,tx)),pad.t+h-5);
+  }
+
+  function decimalsFor(input) {
+    const s=String(input.step||'1');
+    return s.includes('.') ? s.split('.')[1].length : 0;
+  }
+
+  document.querySelectorAll('[data-step]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input=el[btn.dataset.step];
+      const dir=Number(btn.dataset.dir);
+      const step=Number(input.step)||1;
+      let v=Number(input.value)||0;
+      v+=dir*step;
+      const min=input.min!==''?Number(input.min):-Infinity;
+      const max=input.max!==''?Number(input.max):Infinity;
+      v=Math.max(min,Math.min(max,v));
+      input.value=v.toFixed(decimalsFor(input));
+      presetEl.value=''; calculateAndRender();
+    });
+  });
+
+  ids.forEach(k => {
+    el[k].addEventListener('input', () => { presetEl.value=''; calculateAndRender(); });
+    el[k].addEventListener('change', calculateAndRender);
+  });
+
+  presetEl.addEventListener('change', () => {
+    if(presetEl.value==='') return;
+    const p=presets[Number(presetEl.value)];
+    if(!p) return;
+    // Filter presets intentionally do not overwrite telescope aperture,
+    // focal length, or obstruction.
+    setValues(p.values,false);
+  });
+  document.getElementById('clearPreset').addEventListener('click',()=>{presetEl.value='';});
+  document.querySelectorAll('[data-target]').forEach(b=>b.addEventListener('click',()=>{el.targetWavelength.value=b.dataset.target;presetEl.value='';calculateAndRender();}));
+  document.getElementById('reset').addEventListener('click',()=>{
+    loadedCurveData=null; fileInput.value='';document.getElementById('fileName').textContent='No file chosen';document.getElementById('curveMode').classList.remove('on');
+    ids.forEach(id => { el[id].value=''; });
+    presetEl.value='';
+    renderBlankState();
+  });
+
+  document.getElementById('clearCurve').addEventListener('click',()=>{
+    loadedCurveData=null;fileInput.value='';document.getElementById('fileName').textContent='No file chosen';document.getElementById('curveMode').classList.remove('on');calculateAndRender();
+  });
+
+  fileInput.addEventListener('change', async () => {
+    const file=fileInput.files?.[0]; if(!file)return;
+    try {
+      const text=await file.text();
+      const rows=[];
+      for(const raw of text.split(/\r?\n/)){
+        const line=raw.trim(); if(!line || line.startsWith('#') || line.startsWith('//')) continue;
+        const parts=line.split(/[;,\t ]+/).filter(Boolean);
+        if(parts.length<2)continue;
+        const wavelength=Number(parts[0]); let transmission=Number(parts[1]);
+        if(!Number.isFinite(wavelength)||!Number.isFinite(transmission))continue;
+        if(transmission>1.5)transmission/=100;
+        if(transmission<0)transmission=0;
+        rows.push({wavelength,transmission});
+      }
+      if(rows.length<3) throw new Error('Need at least 3 numeric wavelength/transmission rows.');
+      rows.sort((a,b)=>a.wavelength-b.wavelength);
+      loadedCurveData=rows;
+      document.getElementById('fileName').textContent=file.name;
+      document.getElementById('curveMode').classList.add('on');
+
+      // Mirror the plugin's useful auto-derivation after loading a curve.
+      const peakRow=rows.reduce((a,b)=>b.transmission>a.transmission?b:a,rows[0]);
+      const peak=peakRow.transmission;
+      const half=peak/2;
+      let left=null,right=null;
+      for(let i=1;i<rows.length;i++){
+        const a=rows[i-1],b=rows[i];
+        if(left===null && a.transmission<half && b.transmission>=half){
+          const t=(half-a.transmission)/(b.transmission-a.transmission); left=a.wavelength+t*(b.wavelength-a.wavelength);
+        }
+        if(a.transmission>=half && b.transmission<half){
+          const t=(half-a.transmission)/(b.transmission-a.transmission); right=a.wavelength+t*(b.wavelength-a.wavelength);
+        }
+      }
+      const derivedFwhm=(left!==null&&right!==null&&right>left)?right-left:null;
+      el.bandpassCenter.value=peakRow.wavelength.toFixed(2);
+      el.peakTransmittance.value=Math.min(1,peak).toFixed(3);
+      if(derivedFwhm){el.fwhm.value=derivedFwhm.toFixed(2);el.flatTop.value=(derivedFwhm*0.60).toFixed(2);}
+      const lines=[656.3,500.7,672.4];
+      el.targetWavelength.value=lines.reduce((a,b)=>Math.abs(b-peakRow.wavelength)<Math.abs(a-peakRow.wavelength)?b:a,lines[0]).toFixed(1);
+      presetEl.value=''; calculateAndRender();
+    } catch(e) {
+      loadedCurveData=null;fileInput.value='';document.getElementById('fileName').textContent='Could not load curve';document.getElementById('curveMode').classList.remove('on');
+      const err=document.getElementById('errors');err.textContent=e.message||String(e);err.classList.add('on');
+    }
+  });
+
+  window.addEventListener('resize',()=>{
+    if (ids.every(id => el[id].value === '')) renderBlankState();
+    else {
+      cancelAnimationFrame(drawRaf);
+      drawRaf=requestAnimationFrame(()=>drawChart(getParams(),validate(getParams()).length===0));
+    }
+  });
+
+  populatePresets();
+  renderBlankState();
+  runTnsRegressionChecks();
+
+  // Expose a tiny test hook in DevTools.
+  window.NarrowbandCalculator={calculateTransmissionContinuous,validate,getParams,presets};
+})();
+</script>
+</body>
+</html>
