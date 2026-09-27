@@ -32,18 +32,8 @@ aside{padding:14px;background:#0c121b;border-right:1px solid #293548;overflow-y:
   filter:brightness(var(--sky-exposure)) contrast(var(--sky-contrast)) saturate(var(--sky-saturation));
 }
 #constellationCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
-#horizonCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
-#skyTimeBadge{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);max-width:calc(100% - 28px);padding:6px 10px;border:1px solid #40554e;border-radius:7px;background:#101b20e8;color:#dcebe4;font-size:12px;text-align:center;pointer-events:none;z-index:3}
-#timeSection label{grid-template-columns:1fr minmax(150px,1.2fr);font-size:14px}
-#timeSection .inlineCheck label{display:block;margin:0}
-#timeSection .note{font-size:12px}
-#timeSection [hidden]{display:none}
-#timeSection output{font-variant-numeric:tabular-nums}
 #overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
-/* Let the sky sit below the ground while Aladin's controls stay above it. */
-#aladin-lite-div{z-index:auto}
-#aladin-lite-div > canvas{z-index:0}
-#aladin-lite-div > :not(canvas):not(style){z-index:4}
+#aladin-lite-div{z-index:0}
 section{border:1px solid #293548;border-radius:10px;padding:11px;margin-bottom:11px;background:#111925}
 section h2{font-size:14px;margin:0 0 9px}
 .collapsibleSection{padding:0;overflow:clip}
@@ -148,26 +138,6 @@ button:hover{background:#223955}
 <p class="note">The overlay reads Aladin’s live viewport scale, so zooming with the mouse keeps every rectangle correctly scaled.</p>
 </section>
 
-<section id="timeSection">
-<h2>Date, time and horizon</h2>
-<label>Date<input id="simulationDate" type="date" min="1900-01-01" max="2100-12-31"></label>
-<label>Local time<input id="simulationTime" type="time" step="60"></label>
-<label>Day of week<output id="simulationWeekday">—</output></label>
-<label id="timeOccurrenceRow" hidden>Repeated local time<select id="timeOccurrence" aria-label="Choose occurrence of repeated local time"></select></label>
-<p class="note" id="simulationZone"></p>
-<button id="simulationNow" type="button">Now</button>
-<p class="note" id="simulationStatus" role="status" aria-live="polite"></p>
-<div class="inlineCheck"><input id="keepHorizonPointing" type="checkbox" checked><label for="keepHorizonPointing">Keep altitude / azimuth when time changes</label></div>
-<p class="note">Turn this off to track the same celestial field. Zoom and camera rotation stay fixed in either mode.</p>
-<div class="inlineCheck"><input id="showHorizon" type="checkbox" checked><label for="showHorizon">Show ground and horizon directions</label></div>
-<label>Latitude (° N)<input id="observerLatitude" type="number" min="-90" max="90" step="any" placeholder="−90 to 90"></label>
-<label>Longitude (° E)<input id="observerLongitude" type="number" min="-180" max="180" step="any" placeholder="−180 to 180"></label>
-<button id="applyObserver" type="button">Use coordinates</button>
-<p class="note">Use “Find my location” above, or enter coordinates (south and west are negative).</p>
-<p class="note" id="horizonStatus" role="status">Set an observing location to enable the horizon.</p>
-<p class="note">Ground begins at geometric altitude 0°. Terrain, atmospheric refraction, and horizon dip are not modeled. Survey images are fixed photographs; the date controls their position relative to your horizon, not planetary motion or daylight.</p>
-</section>
-
 <section id="constellationSection">
 <h2>Constellations</h2>
 
@@ -242,6 +212,7 @@ button:hover{background:#223955}
 </label>
 <label>Reducer factor<input id="reducer" type="number" min="0.01" step="0.001" placeholder="e.g., 1.000"></label>
 <label>Effective focal length (mm)<input id="fl" type="number" min="1" placeholder="Calculated or custom"></label>
+<p class="note">Seestar S30 / S30 Pro presets select the built-in telephoto camera and native optics automatically. Frames use portrait orientation: S30 ≈ 1.20° × 2.13°; S30 Pro ≈ 2.24° × 3.99°. Compare the two using separate comparison setups.</p>
 <p class="note">The Apertura CarbonStar reducing coma corrector is 0.95×. Celestron’s classic SCT reducer is 0.63×; dedicated EdgeHD reducers for the 8, 9.25, 11, and 14 are 0.70×.</p>
 </section>
 
@@ -404,15 +375,11 @@ button:hover{background:#223955}
 <main class="viewer" id="viewer">
 <div id="aladin-lite-div"></div>
 <canvas id="constellationCanvas"></canvas>
-<canvas id="horizonCanvas" aria-hidden="true"></canvas>
 <svg id="overlay" preserveAspectRatio="none"><g id="graphics"></g></svg>
-<div id="skyTimeBadge" role="status" aria-live="off"></div>
 </main>
 </div>
 
 <script src="https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.js"></script>
-<script src="vendor/astronomy-2.1.19.min.js"></script>
-<script src="sky-horizon.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -477,7 +444,9 @@ const TELESCOPES = {
   pwcdk700: {group:'PlaneWave Observatory Systems', name:'PlaneWave CDK700 f/6.5', fl:4540, aperture:700, imageCircle:70, circleNote:'Manufacturer-specified corrected image circle'},
   pwrc700: {group:'PlaneWave Observatory Systems', name:'PlaneWave RC700 f/12', fl:8410, aperture:700, imageCircle:null, circleNote:'No manufacturer optimized image-circle diameter published'},
   pwcdk1000: {group:'PlaneWave Observatory Systems', name:'PlaneWave CDK1000 f/6', fl:6000, aperture:1000, imageCircle:100, circleNote:'Manufacturer-specified corrected image circle'},
-  pwrc1000: {group:'PlaneWave Observatory Systems', name:'PlaneWave RC1000 f/12.2', fl:12200, aperture:1000, imageCircle:64, circleNote:'Manufacturer-specified optimal field diameter'}
+  pwrc1000: {group:'PlaneWave Observatory Systems', name:'PlaneWave RC1000 f/12.2', fl:12200, aperture:1000, imageCircle:64, circleNote:'Manufacturer-specified optimal field diameter'},
+  seestarS30: {group:'Seestar smart telescopes', name:'ZWO Seestar S30 (telephoto)', fl:150, aperture:30, imageCircle:null, cameraKey:'seestarS30', circleNote:'Integrated camera; manufacturer does not publish a separate image-circle diameter'},
+  seestarS30Pro: {group:'Seestar smart telescopes', name:'ZWO Seestar S30 Pro (telephoto)', fl:160, aperture:30, imageCircle:null, cameraKey:'seestarS30Pro', circleNote:'Integrated camera; manufacturer does not publish a separate image-circle diameter'}
 };
 
 const REDUCER_PRESETS = [
@@ -495,11 +464,16 @@ const MAIN_CAMS = {
   asi294: {group:'ZWO', name:'ZWO ASI294MM Pro', w:19.10, h:13.00, pixel:4.63, color:'#a78bfa'},
   asi2600: {group:'ZWO', name:'ZWO ASI2600MM Pro', w:23.50, h:15.70, pixel:3.76, color:'#ff70d1'},
   asi6200: {group:'ZWO', name:'ZWO ASI6200MM Pro', w:36.00, h:24.00, pixel:3.76, color:'#ffd166'},
+  asi461: {group:'ZWO', name:'ZWO ASI461MM Pro', w:43.856, h:32.90, pixel:3.76, color:'#2dd4bf'},
   moravianG49000: {group:'Moravian Instruments — larger than 35mm full frame', name:'Moravian Instruments G4-9000 Mark II', w:36.70, h:36.70, pixel:12.00, color:'#f59e0b'},
   moravianG416000: {group:'Moravian Instruments — larger than 35mm full frame', name:'Moravian Instruments G4-16000 Mark II', w:36.90, h:36.90, pixel:9.00, color:'#fb7185'},
   moravianC416000: {group:'Moravian Instruments — larger than 35mm full frame', name:'Moravian Instruments C4-16000', w:37.00, h:37.00, pixel:9.00, color:'#34d399'},
   moravianC5100: {group:'Moravian Instruments — larger than 35mm full frame', name:'Moravian Instruments C5A/S-100M', w:43.86, h:32.90, pixel:3.76, color:'#60a5fa'},
-  moravianC5150: {group:'Moravian Instruments — larger than 35mm full frame', name:'Moravian Instruments C5A/S-150M', w:53.42, h:40.07, pixel:3.76, color:'#c084fc'}
+  moravianC5150: {group:'Moravian Instruments — larger than 35mm full frame', name:'Moravian Instruments C5A/S-150M', w:53.42, h:40.07, pixel:3.76, color:'#c084fc'},
+  // Native portrait capture dimensions × 2.9 µm pixel pitch; not upscaled output.
+  // Seestar product specifications and Sony sensor references: docs/seestar-presets.md.
+  seestarS30: {group:'Seestar built-in telephoto cameras', name:'Seestar S30 · Sony IMX662 (portrait)', w:3.132, h:5.568, pixel:2.9, color:'#f6a85f', telescopeKey:'seestarS30'},
+  seestarS30Pro: {group:'Seestar built-in telephoto cameras', name:'Seestar S30 Pro · Sony IMX585 (portrait)', w:6.264, h:11.136, pixel:2.9, color:'#58e0c2', telescopeKey:'seestarS30Pro'}
 };
 
 const GUIDE_CAMS = {
@@ -509,7 +483,6 @@ const GUIDE_CAMS = {
 };
 
 let aladin = null;
-let skySimulation = null;
 let comparisonSequence = 0;
 let activeComparisonId = null;
 let activeMainCameraKey = null;
@@ -657,10 +630,23 @@ function svgText(x, y, text, angle){
     transform="rotate(${angle} ${x} ${y})">${text}</text>`;
 }
 
+function applyIntegratedPreset(telescope, selectCamera, preset, factor){
+  if(!telescope?.cameraKey) return;
+  selectCamera(telescope.cameraKey);
+  preset.value = '1.00';
+  factor.value = '1.000';
+}
+
 function syncTelescopeFields(fromTelescope=true){
   if(fromTelescope){
     const telescope = TELESCOPES[$("telescope").value];
     $("nativeFl").value = telescope ? telescope.fl : "";
+    applyIntegratedPreset(telescope, key => {
+      document.querySelectorAll('input[name="maincam"]').forEach(input => {
+        if(MAIN_CAMS[input.value].telescopeKey) input.checked = input.value === key;
+      });
+      activeMainCameraKey = key;
+    }, $("reducerPreset"), $("reducer"));
   }
   const nativeFl = Number($("nativeFl").value);
   const reducer = $("reducer").value === "" ? 1 : Number($("reducer").value);
@@ -764,11 +750,20 @@ function addComparisonSetup({skipUpdate=false} = {}){
 
   card.querySelector(".compareTelescope").addEventListener("change", () => {
     activateComparison(card);
+    applyIntegratedPreset(TELESCOPES[card.querySelector('.compareTelescope').value], key => {
+      card.querySelector('.compareCamera').value = key;
+    }, card.querySelector('.compareReducerPreset'), card.querySelector('.compareReducer'));
     syncComparisonFields(card);
     update();
   });
   card.querySelector(".compareCamera").addEventListener("change", () => {
     activateComparison(card);
+    const telescopeKey = MAIN_CAMS[card.querySelector('.compareCamera').value]?.telescopeKey;
+    if(telescopeKey){
+      card.querySelector('.compareTelescope').value = telescopeKey;
+      applyIntegratedPreset(TELESCOPES[telescopeKey], () => {}, card.querySelector('.compareReducerPreset'), card.querySelector('.compareReducer'));
+      syncComparisonFields(card);
+    }
     update();
   });
   card.querySelector(".compareReducerPreset").addEventListener("change", event => {
@@ -1249,12 +1244,13 @@ function localSiderealTimeDegrees(longitudeDeg, date = new Date()){
 }
 
 function useObserverLocation(latitude, longitude){
-  skySimulation?.setObserver(latitude, longitude);
-  const zenith = skySimulation?.zenith() || [localSiderealTimeDegrees(longitude), latitude];
-  aladin.gotoRaDec(zenith[0], zenith[1]);
-  $("target").value = `Zenith at selected time (${(zenith[0]/15).toFixed(2)}h, ${zenith[1].toFixed(2)}°)`;
+  const lstDeg = localSiderealTimeDegrees(longitude);
+  const zenithRAHours = lstDeg / 15;
+  // The current zenith has RA = local sidereal time, Dec = observer latitude.
+  aladin.gotoRaDec(lstDeg, latitude);
+  $("target").value = `Current zenith (${zenithRAHours.toFixed(2)}h, ${latitude.toFixed(2)}°)`;
   $("locationStatus").textContent =
-    `Lat ${latitude.toFixed(4)}°, Lon ${longitude.toFixed(4)}°`;
+    `Lat ${latitude.toFixed(4)}°, Lon ${longitude.toFixed(4)}° · current zenith`;
   setTimeout(() => {
     if($("showMosaic").checked) fitMosaic();
     else fitAll();
@@ -1592,16 +1588,6 @@ A.init.then(() => {
     cooFrame: "ICRS"
   });
 
-  try{
-    skySimulation = SkyHorizon.attach(aladin, {onViewChange: () => {
-      update();
-      scheduleConstellationDraw();
-    }});
-  }catch(error){
-    $("horizonStatus").textContent = "The time/horizon layer could not start. Reload to retry; the FOV calculator is still available.";
-    console.error("Time/horizon layer:", error);
-  }
-
   ["showConstellationLines","showConstellationFigures","showConstellationNames"].forEach(id => {
     $(id).addEventListener("change", () => {
       if(constellationEnabled()) ensureConstellationData();
@@ -1764,6 +1750,9 @@ A.init.then(() => {
     setMosaicRotationSync(!mosaicRotationIsSynced());
   });
   $("mosaicTelescope").addEventListener("change", () => {
+    applyIntegratedPreset(TELESCOPES[$('mosaicTelescope').value], key => {
+      $('mosaicCamera').value = key;
+    }, $('mosaicReducerPreset'), $('mosaicReducer'));
     syncMosaicTelescopeFields();
     update();
   });
@@ -1849,6 +1838,15 @@ A.init.then(() => {
   ["showMosaic","numberTiles","linkOverlap"].forEach(id => {
     $(id).addEventListener("change", update);
   });
+  $("mosaicCamera").addEventListener("change", () => {
+    const telescopeKey = MAIN_CAMS[$('mosaicCamera').value]?.telescopeKey;
+    if(telescopeKey){
+      $('mosaicTelescope').value = telescopeKey;
+      applyIntegratedPreset(TELESCOPES[telescopeKey], () => {}, $('mosaicReducerPreset'), $('mosaicReducer'));
+      syncMosaicTelescopeFields();
+      update();
+    }
+  });
   ["mosaicCamera","mosaicCols","mosaicRows"].forEach(id => {
     $(id).addEventListener("input", update);
     $(id).addEventListener("change", update);
@@ -1858,6 +1856,11 @@ A.init.then(() => {
     el.addEventListener("change", () => {
       if(el.name === "maincam"){
         activeMainCameraKey = el.checked ? el.value : (activeMainCameraKey === el.value ? null : activeMainCameraKey);
+        const telescopeKey = MAIN_CAMS[el.value]?.telescopeKey;
+        if(el.checked && telescopeKey){
+          $('telescope').value = telescopeKey;
+          syncTelescopeFields(true);
+        }
         activateMainConfiguration();
       }
       update();
@@ -1866,7 +1869,6 @@ A.init.then(() => {
   });
 
   document.querySelectorAll("input, select").forEach(el => {
-    if(el.closest("#timeSection")) return;
     if(!["target","manualFov","oagPANum","survey","telescope","preset","reducerPreset","mainPANum","guideRotNum","mosaicTelescope","mosaicReducerPreset","mosaicReducer","mosaicFl","mosaicOverlapX","mosaicOverlapY","mosaicOverlapXNum","mosaicOverlapYNum","mosaicRotation","mosaicRotationNum","mosaicCols","mosaicRows"].includes(el.id) &&
        !["maincam","guidecam"].includes(el.name || "")){
       el.addEventListener("input", update);

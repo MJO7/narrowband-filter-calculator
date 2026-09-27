@@ -4,7 +4,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const publicFiles=['index.html','fov-calculator.html','narrowband-filter-calculator.html','sky-horizon.js','vendor/astronomy-2.1.19.min.js'];
+const publicFiles=['index.html','fov-calculator.html','narrowband-filter-calculator.html'];
 for(const file of publicFiles){
   const source=await readFile(path.join(root,file),'utf8');
   if(file.endsWith('.js')) new vm.Script(source,{filename:file});
