@@ -99,6 +99,7 @@
       border:1px solid var(--border-strong); background:var(--input2); color:#e7edf6; border-radius:7px; min-height:36px; padding:7px 11px; outline:none;
     }
     select { width:100%; }
+    #samyangCustomStop { width:100%; border:1px solid var(--border-strong); background:var(--input2); color:#e7edf6; border-radius:7px; min-height:36px; padding:7px 11px; }
     .secondary-btn { cursor:pointer; transition:.14s ease; }
     .secondary-btn:hover { background:#334155; border-color:rgba(148,163,184,.4); }
     .upload-block { margin-top: 3px; padding-top: 3px; }
@@ -115,7 +116,7 @@
     .line-btn { border:1px solid transparent; border-radius:5px; cursor:pointer; padding:5px 6px; font-weight:700; font-size:11px; color:#e7edf6; transition:.15s ease; }
     .line-btn:hover { transform:translateY(-1px); filter:brightness(1.14); }
     .ha {background:rgba(155,39,78,.55)} .oiii {background:rgba(11,109,135,.58)} .sii {background:rgba(118,98,32,.64)}
-    .result-wrap { position:sticky; top:16px; display:grid; gap:12px; }
+    .result-wrap { position:static; display:grid; gap:12px; }
     .result {
       border:1px solid rgba(52,211,153,.25); border-radius:var(--radius); background:linear-gradient(160deg,rgba(9,73,73,.65),rgba(11,55,55,.72)); box-shadow:0 16px 40px rgba(0,0,0,.18); padding:20px;
     }
@@ -134,6 +135,23 @@
       border:1px solid var(--border); border-radius:12px; background:rgba(14,22,36,.74); padding:13px 14px; color:var(--muted); font-size:11.5px; line-height:1.45;
     }
     .assumption strong { color:#d7dfeb; }
+    .small-note { color:var(--muted); font-size:11.5px; line-height:1.5; margin:7px 0 0; }
+    .comparison-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .compare-card { border:1px solid var(--border); border-radius:10px; padding:14px; background:rgba(9,18,31,.65); }
+    .compare-card h3 { font-size:14px; margin:0 0 9px; }
+    .compare-card p { color:var(--muted); margin:6px 0; line-height:1.45; font-size:12px; }
+    .compare-card strong { color:var(--green); }
+    .compare-card a, .small-note a, details a { color:#93c5fd; }
+    .table-scroll { overflow-x:auto; }
+    .recommend-table { width:100%; border-collapse:collapse; font-size:12px; min-width:600px; }
+    .recommend-table th, .recommend-table td { padding:9px 10px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top; }
+    .recommend-table th { color:#d7dfeb; font-weight:700; }
+    .recommend-table td { color:var(--muted); }
+    .recommend-table td strong { color:var(--green); }
+    .recommend-table td small { display:block; color:var(--muted2); margin-top:3px; line-height:1.4; }
+    .recommend-block { margin-top:18px; }
+    .recommend-block h3 { font-size:14px; margin:0 0 9px; }
+    .verdict { margin:12px 0 0; padding:10px 12px; border-radius:8px; background:rgba(245,158,11,.09); color:#f6d58b; line-height:1.45; font-size:12px; }
     .chart-panel { grid-column:1 / -1; }
     .chart-wrap { position:relative; height:330px; width:100%; }
     canvas { width:100%; height:100%; display:block; }
@@ -158,6 +176,7 @@
       .row { grid-template-columns:1fr; gap:6px; }
       .select-shell { grid-template-columns:1fr; }
       .chart-wrap { height:280px; }
+      .comparison-grid { grid-template-columns:1fr; }
     }
   </style>
 </head>
@@ -166,7 +185,7 @@
     <header class="hero">
       <a class="home-link" href="index.html">← All calculators</a>
       <h1>Filter Calculator</h1>
-      <p>Calculate narrowband filter transmission through a converging telescope beam, including central obstruction and angle-dependent bandpass shift.</p>
+      <p>Estimate on-axis narrowband transmission through a converging beam, compare two Antlia filter designs, and check basic 36 mm sizing geometry.</p>
     </header>
 
     <section class="grid">
@@ -174,20 +193,45 @@
         <section class="panel">
           <h2 class="panel-title"><span class="icon-dot"></span> Optical Parameters</h2>
           <div class="fields">
+            <div>
+              <label for="opticalPreset">Telescope or lens preset</label>
+              <select id="opticalPreset" style="margin-top:8px">
+                <option value="">Select an optical setup…</option>
+                <option value="carbonstar-native">Apertura CarbonStar 150 — 600 mm, f/4</option>
+                <option value="carbonstar-prcc">Apertura CarbonStar 150 + 0.95× PRCC — 570 mm, f/3.8</option>
+                <option value="samyang-135">Samyang 135 mm f/2 ED UMC — adjustable f-stop</option>
+              </select>
+              <p class="small-note" id="opticalNote">Choose a preset or enter your own optical parameters. The 0.95× PRCC is for the CarbonStar, not the Samyang lens.</p>
+              <p class="small-note">Preset specifications: <a href="https://www.highpointscientific.com/apertura-carbonstar-150-imaging-newtonian-with-0-95x-coma-corrector" target="_blank" rel="noopener noreferrer">Apertura CarbonStar + PRCC</a> · <a href="https://www.lksamyang.com/ch/product/product-view.php?seq=324" target="_blank" rel="noopener noreferrer">Samyang 135 mm f/2</a>.</p>
+            </div>
+            <div id="samyangStopRow" class="row" style="display:none">
+              <div class="label-wrap"><label for="samyangStop">Samyang f-stop</label><span class="subnote">Samyang specifies f/2–f/22. <a href="https://www.cameralabs.com/samyang-rokinon-135mm-f2-ed-umc-review/2/" target="_blank" rel="noopener noreferrer">Hands-on ring checks</a> report half-stop clicks through f/16, then f/22; intermediate values below are nominal, not a manufacturer-published click list. Use Custom for between-click settings or a different lens version.</span></div>
+              <select id="samyangStop">
+                <option value="2">f/2</option><option value="2.4">f/2.4</option><option value="2.8">f/2.8</option><option value="3.3">f/3.3</option>
+                <option value="4">f/4</option><option value="4.8">f/4.8</option><option value="5.6">f/5.6</option><option value="6.7">f/6.7</option>
+                <option value="8">f/8</option><option value="9.5">f/9.5</option><option value="11">f/11</option><option value="13">f/13</option>
+                <option value="16">f/16</option><option value="22">f/22</option>
+                <option value="custom">Custom f-number…</option>
+              </select>
+            </div>
+            <div id="samyangCustomRow" class="row" style="display:none">
+              <label for="samyangCustomStop">Custom Samyang f-number</label>
+              <input id="samyangCustomStop" type="number" min="2" max="22" step="0.1" placeholder="2–22">
+            </div>
             <div class="row">
-              <label for="aperture">Aperture (mm)</label>
-              <div class="stepper"><button data-step="aperture" data-dir="-1">−</button><input id="aperture" type="number" min="10" max="2000" step="1"><button data-step="aperture" data-dir="1">+</button></div>
+              <div class="label-wrap"><label for="aperture">Aperture (mm)</label><span class="subnote">For a camera lens: entrance-pupil diameter = focal length ÷ f-number.</span></div>
+              <div class="stepper"><button data-step="aperture" data-dir="-1">−</button><input id="aperture" type="number" min="1" max="2000" step="0.5"><button data-step="aperture" data-dir="1">+</button></div>
             </div>
             <div class="row">
               <label for="focalLength">Focal Length (mm)</label>
               <div class="stepper"><button data-step="focalLength" data-dir="-1">−</button><input id="focalLength" type="number" min="100" max="10000" step="10"><button data-step="focalLength" data-dir="1">+</button></div>
             </div>
             <div class="row">
-              <div class="label-wrap"><label for="peakTransmittance">Peak Transmittance</label><span class="subnote">0–1; ignored when a measured curve is loaded</span></div>
+              <div class="label-wrap"><label for="peakTransmittance">Model peak transmittance</label><span class="subnote">0–1; Antlia preset values use published minimum/spec figures, not a measured peak. Ignored with a measured curve.</span></div>
               <div class="stepper"><button data-step="peakTransmittance" data-dir="-1">−</button><input id="peakTransmittance" type="number" min="0" max="1" step="0.01"><button data-step="peakTransmittance" data-dir="1">+</button></div>
             </div>
             <div class="row">
-              <div class="label-wrap"><label for="effectiveRefractiveIndex">Refractive Index</label><span class="subnote">Effective refractive index, n<sub>eff</sub></span></div>
+              <div class="label-wrap"><label for="effectiveRefractiveIndex">Model refractive index</label><span class="subnote">Effective coating n<sub>eff</sub>; 1.8 is an assumption for Antlia, not a published specification.</span></div>
               <div class="stepper"><button data-step="effectiveRefractiveIndex" data-dir="-1">−</button><input id="effectiveRefractiveIndex" type="number" min="1.1" max="2.5" step="0.05"><button data-step="effectiveRefractiveIndex" data-dir="1">+</button></div>
             </div>
             <div class="row">
@@ -227,7 +271,7 @@
               <div class="stepper"><button data-step="fwhm" data-dir="-1">−</button><input id="fwhm" type="number" min="0.5" max="20" step="0.1"><button data-step="fwhm" data-dir="1">+</button></div>
             </div>
             <div class="row">
-              <label for="flatTop">Flat Top (nm)</label>
+              <div class="label-wrap"><label for="flatTop">Flat Top (nm)</label><span class="subnote">Idealized model shape; not specified numerically for these Antlia filters.</span></div>
               <div class="stepper"><button data-step="flatTop" data-dir="-1">−</button><input id="flatTop" type="number" min="0.01" step="0.1"><button data-step="flatTop" data-dir="1">+</button></div>
             </div>
             <div class="row">
@@ -244,18 +288,50 @@
       <aside class="result-wrap">
         <section class="result">
           <div id="gauge" class="gauge"><div class="gauge-value"><b id="transmission">—</b>%<span>area-weighted transmission</span></div></div>
-          <div id="success" class="success" style="display:none">✓ Transmission calculated successfully</div>
+          <div id="success" class="success" style="display:none">Illustrative model estimate — not measured filter throughput</div>
           <div id="errors" class="error"></div>
-          <div class="metric"><span>Wavelength Range</span><strong id="wavelengthRange">—</strong></div>
-          <div class="metric"><span>Flat Top Range</span><strong id="flatTopRange">—</strong></div>
+          <div class="metric"><span>Nominal half-max interval</span><strong id="wavelengthRange">—</strong></div>
+          <div class="metric"><span>Model flat-top interval</span><strong id="flatTopRange">—</strong></div>
           <div class="metric"><span>f/Ratio</span><strong id="fRatio">—</strong></div>
           <div class="metric"><span>Obstruction</span><strong id="obstructionPct">—</strong></div>
-          <div class="metric"><span>Edge-ray blue shift</span><strong id="edgeShift">—</strong></div>
+          <div class="metric"><span>Modeled edge-ray blue shift</span><strong id="edgeShift">—</strong></div>
         </section>
         <button id="reset" class="secondary-btn reset">Clear All</button>
         <div id="tnsCheck" class="tns-check"><strong>Touch-N-Stars engine check:</strong> running reference calculations…</div>
-        <div class="assumption"><strong>Preset note.</strong> Chroma values labeled “TNS” follow the current Touch-N-Stars presets. Antlia presets use manufacturer-published CWL/FWHM/transmission specifications; the 4.5nm EDGE presets use 656.3/500.7/671.6 nm centers, 4.5 nm FWHM, and conservative published transmission floors of 90%/85%/90% for Hα/OIII/SII. Antlia states EDGE can be used down to about f/3 with minimal signal loss. Because Antlia does not publish a calculator-ready coating <em>n<sub>eff</sub></em> or full numerical spectral curve, <em>n<sub>eff</sub>=1.8</em> and a 1.0 nm idealized flat-top remain explicit model assumptions. For Baader f/2/f/3 fast filters, the calculator applies a red pre-shift appropriate to the nominal design f/ratio before the same pupil-angle integration.</div>
+        <div class="assumption"><strong>Model limits.</strong> The number above is an on-axis, monochromatic Hα/OIII/SII estimate, not a measured guarantee or a full-field vignetting result. Chroma “TNS” values follow Touch-N-Stars presets. Antlia CWL/FWHM and listed transmission figures are manufacturer specifications, but its coating <em>n<sub>eff</sub></em> and numerical spectral curves are not available here: <em>n<sub>eff</sub>=1.8</em> and 1 nm flat-top are assumptions. Changing either may change the apparent winner. Off-axis chief rays, lens exit-pupil geometry, passband broadening/polarization, tolerances, camera QE, and actual filter clear aperture are not modeled. Baader fast-filter pre-shifts are also model assumptions.</div>
       </aside>
+
+      <section class="panel chart-panel">
+        <h2 class="panel-title"><span class="band-icon"><span></span><span></span><span></span></span> Antlia 36 mm Hα: Standard vs Highspeed</h2>
+        <div class="comparison-grid">
+          <div class="compare-card"><h3>3 nm Pro Hα — standard</h3><p>36 mm unmounted · 2 mm thick · OD5 blocking · CWL 656.3 nm · FWHM 3 nm · Hα transmission &gt;88% in Antlia’s specification.</p><p>Modeled Hα retention of its own peak: <strong id="standardRetention">—</strong></p><p>Spec-scaled illustration: <span id="standardEstimate">—</span></p><p>Sensitivity sweep: <span id="standardSensitivity">—</span></p><p><a href="https://shop.antliafilter.com/products/antlia-3nm-narrowband-h-alpha-ha-pro-filter-36mm-unmounted" target="_blank" rel="noopener noreferrer">Antlia standard Hα specifications</a></p></div>
+          <div class="compare-card"><h3>3 nm Pro Highspeed Hα</h3><p>36 mm unmounted · 2 mm thick · OD5 blocking · CWL 657.5 nm · FWHM 3 nm · listed peak 90%; +1.2 nm red pre-shift.</p><p>Modeled Hα retention of its own peak: <strong id="highspeedRetention">—</strong></p><p>Spec-scaled illustration: <span id="highspeedEstimate">—</span></p><p>Sensitivity sweep: <span id="highspeedSensitivity">—</span></p><p><a href="https://www.antliafilter.com/pd.jsp?id=149" target="_blank" rel="noopener noreferrer">Antlia Highspeed specifications</a></p></div>
+        </div>
+        <p class="verdict" id="buyingGuidance">Select an optical setup or enter aperture and focal length to compare modeled Hα line retention.</p>
+        <p class="small-note">The headline comparison normalizes each filter to its own peak, avoiding a misleading direct comparison of the standard filter’s &gt;88% specification with the Highspeed’s listed 90% peak. Baseline assumes a shared n<sub>eff</sub>=1.8 and 1 nm flat-top; the sensitivity sweep tries n<sub>eff</sub>=1.6, 1.8, 2.2 and flat-tops 0.5, 1, 2 nm. These are scenarios, not measured limits. Antlia recommends Highspeed at f/2.6–f/3.6 and standard for slower optics, but its standard listing also says use to f/3 with slight loss. Both are 36 mm outside diameter; neither product provides a full numerical angle-dependent curve here.</p>
+      </section>
+
+      <section class="panel chart-panel" id="filterRecommendations">
+        <h2 class="panel-title"><span class="band-icon"><span></span><span></span><span></span></span> SHO filter and Samyang f-stop comparison</h2>
+        <p class="small-note">Calculated on-axis with the same annular-pupil model as above. The percentages are <strong>modeled line transmission relative to each filter’s own peak</strong>, not measured absolute throughput. For SII, the comparison assumes a 50:50 mix of the <a href="https://www.antliafilter.com/pd.jsp?id=134" target="_blank" rel="noopener noreferrer">671.6 and 673.1 nm lines</a>.</p>
+        <div class="recommend-block"><h3>CarbonStar 150 mm: native f/4 and 0.95× reducer f/3.8</h3><div class="table-scroll"><table class="recommend-table"><thead><tr><th>Setup</th><th>Line</th><th>Standard transmission</th><th>Highspeed transmission</th><th>Better in model</th></tr></thead><tbody id="carbonstarRecommendations"></tbody></table></div><p class="small-note" id="carbonstarCaution"></p></div>
+        <div class="recommend-block"><h3>Samyang 135 mm: all 14 f-stops × both filter versions × three lines</h3><div class="table-scroll"><table class="recommend-table"><thead><tr><th>Line</th><th>f-stop</th><th>Standard transmission</th><th>Highspeed transmission</th><th>Better in model</th></tr></thead><tbody id="samyangRecommendations"></tbody></table></div><p class="verdict" id="samyangShoRecommendation"></p><details style="margin-top:12px"><summary>View all 84 Samyang combinations</summary><div class="table-scroll"><table class="recommend-table"><thead><tr><th>Line</th><th>f-stop</th><th>Standard transmission</th><th>Highspeed transmission</th><th>Better in model</th></tr></thead><tbody id="samyangAllCombinations"></tbody></table></div></details></div>
+        <p class="small-note">All 84 Samyang combinations are included, even outside Antlia’s stated use ranges. The chosen f-stop above still maximizes a modeled line-photon proxy proportional to transmission ÷ f-number²; that calculation is kept out of the comparison columns. Antlia lists Highspeed for f/2.6–f/3.6 and recommends standard beyond f/3.6; its standard product pages also say use to f/3 with slight loss.</p>
+        <p class="small-note">Inputs: Antlia’s published 3 nm CWLs/FWHM and stated transmission levels for <a href="https://shop.antliafilter.com/products/antlia-3nm-narrowband-h-alpha-ha-pro-filter-36mm-unmounted" target="_blank" rel="noopener noreferrer">standard Hα</a>, <a href="https://shop.antliafilter.com/products/antlia-3nm-narrowband-oxygen-iii-oiii-pro-filter-36mm-unmounted" target="_blank" rel="noopener noreferrer">standard OIII</a>, <a href="https://shop.antliafilter.com/products/antlia-3nm-narrowband-sulfur-ii-sii-pro-filter-36mm-unmounted" target="_blank" rel="noopener noreferrer">standard SII</a>, and <a href="https://www.antliafilter.com/pd.jsp?id=149" target="_blank" rel="noopener noreferrer">Highspeed SHO</a>. The coating index, actual angle-dependent curves, lens exit pupil, SII line ratio, and exact peak transmission of each filter are not published as comparable numeric data here. The ranking is therefore a <strong>conditional model result, not a verified purchasing verdict or guarantee of image quality</strong>. Camera QE, target spectrum, sky background, seeing, and full-field vignetting can change the practical choice.</p>
+      </section>
+
+      <section class="panel chart-panel">
+        <h2 class="panel-title"><span class="icon-dot"></span> 36 mm filter clearance check</h2>
+        <div class="fields">
+          <div><label for="sensorPreset">Camera sensor preset</label><select id="sensorPreset" style="margin-top:8px"><option value="">Select a camera…</option><option value="asi533">ZWO ASI533MM/MC Pro — 15.968 mm diagonal</option><option value="asi2600">ZWO ASI2600MM/MC Pro — 28.3 mm diagonal</option></select></div>
+          <div class="row"><div class="label-wrap"><label for="sensorDiagonal">Sensor diagonal (mm)</label><span class="subnote">Enter your camera sensor diagonal, not its body diameter.</span></div><div class="stepper"><button data-step="sensorDiagonal" data-dir="-1">−</button><input id="sensorDiagonal" type="number" min="0" step="0.1"><button data-step="sensorDiagonal" data-dir="1">+</button></div></div>
+          <div class="row"><div class="label-wrap"><label for="filterDistance">Filter-to-sensor distance (mm)</label><span class="subnote">Distance from filter plane to sensor.</span></div><div class="stepper"><button data-step="filterDistance" data-dir="-1">−</button><input id="filterDistance" type="number" min="0" step="0.5"><button data-step="filterDistance" data-dir="1">+</button></div></div>
+          <div class="row"><div class="label-wrap"><label for="clearAperture">Actual clear aperture (mm)</label><span class="subnote">Optional; enter a measured or manufacturer-confirmed usable opening. 36 mm is the filter’s outer diameter, not a verified clear aperture.</span></div><div class="stepper"><button data-step="clearAperture" data-dir="-1">−</button><input id="clearAperture" type="number" min="0" max="36" step="0.1"><button data-step="clearAperture" data-dir="1">+</button></div></div>
+          <p class="verdict" id="sizeGuidance">Enter sensor diagonal and filter distance to estimate the minimum clear opening for an image-space cone.</p>
+          <p class="small-note">ZWO sensor diagonals: <a href="https://astronomy-imaging-camera.com/product/asi533mM-pro/" target="_blank" rel="noopener noreferrer">ASI533MM Pro</a> and <a href="https://astronomy-imaging-camera.com/manuals/ASI2600_Manual_EN_V1.3.pdf" target="_blank" rel="noopener noreferrer">ASI2600 manual</a>. The <a href="https://shop.antliafilter.com/products/antlia-3nm-narrowband-h-alpha-ha-pro-filter-36mm-unmounted" target="_blank" rel="noopener noreferrer">standard</a> and <a href="https://www.antliafilter.com/pd.jsp?id=149" target="_blank" rel="noopener noreferrer">Highspeed</a> Antlia product pages give 36 mm nominal diameter but no numeric clear-aperture specification; this field is intentionally not preset.</p>
+          <p class="small-note">Approximation: required clear diameter ≈ sensor diagonal + distance ÷ f-ratio, assuming a centered filter and perpendicular chief rays. Off-axis chief-ray displacement can require a larger opening. A 36 mm unmounted filter may not fit a given wheel or lens adapter; Samyang’s front filter thread is 77 mm, not 36 mm.</p>
+        </div>
+      </section>
 
       <section class="panel chart-panel">
         <h2 class="panel-title"><span class="band-icon"><span></span><span></span><span></span></span> Bandpass Curve</h2>
@@ -271,8 +347,8 @@
       <section class="panel chart-panel">
         <details>
           <summary>How the calculation works</summary>
-          <p>The model treats the entrance pupil as an annulus. For each pupil radius <code>r</code>, the ray angle is <code>atan(r / focalLength)</code>. The interference filter center shifts blue according to <code>λ′ = λ₀ √(1 − sin²θ / n_eff²)</code>. Transmission at the selected emission line is then weighted by each infinitesimal annular area <code>2πr dr</code> and numerically integrated with Simpson's rule.</p>
-          <p>With no measured curve loaded, the passband is a flat-top profile with Gaussian shoulders. With a measured curve loaded, the uploaded curve is shifted by the same angle-of-incidence model and linearly interpolated.</p>
+          <p>The model approximates the image-space cone as an annulus. For each pupil radius <code>r</code>, ray angle <code>θ ≈ atan(r / focalLength)</code>. A thin-film interference passband blue-shifts approximately as <code>λ′ = λ₀ √(1 − sin²θ / n_eff²)</code>. The line transmission is weighted by annular area <code>2πr dr</code> and integrated with Simpson’s rule. Central obstruction removes the inner annulus. For a complex camera lens or reducer, the true exit pupil can make this angle distribution differ from the simple f-ratio model.</p>
+          <p>Without a measured curve, the passband is an assumed flat-top with Gaussian shoulders: this construction gives the entered FWHM, but is not Antlia’s measured curve. A measured normal-incidence curve is evaluated at the wavelength corresponding to each ray’s shifted passband. The result is one on-axis line-throughput estimate; it does not include full-field throughput, quantum efficiency, or filter-holder vignetting. Manufacturer f-ratio guidance is context, not a substitute for measured transmission through your setup.</p>
         </details>
       </section>
     </section>
@@ -328,10 +404,23 @@
   ];
 
   const ids = ['aperture','focalLength','peakTransmittance','effectiveRefractiveIndex','obstructionDiameter','bandpassCenter','fwhm','flatTop','targetWavelength'];
-  const el = Object.fromEntries(ids.map(k => [k, document.getElementById(k)]));
+  const sizeIds = ['sensorDiagonal','filterDistance','clearAperture'];
+  const el = Object.fromEntries([...ids,...sizeIds].map(k => [k, document.getElementById(k)]));
   const presetEl = document.getElementById('preset');
+  const opticalPresetEl = document.getElementById('opticalPreset');
+  const samyangStopEl = document.getElementById('samyangStop');
+  const samyangCustomStopEl = document.getElementById('samyangCustomStop');
+  const sensorPresetEl = document.getElementById('sensorPreset');
   const fileInput = document.getElementById('curveFile');
   let loadedCurveData = null;
+  const sensorPresets = {asi533:15.968, asi2600:28.3};
+  const opticalPresets = {
+    'carbonstar-native': { aperture:150, focalLength:600, obstructionDiameter:62,
+      note:'CarbonStar 150: 150 mm primary, 600 mm focal length, 62 mm published secondary obstruction. No reducer.' },
+    'carbonstar-prcc': { aperture:150, focalLength:570, obstructionDiameter:62,
+      note:'CarbonStar 150 + Apertura 0.95× Photographic Reducing Coma Corrector: 600 × 0.95 = 570 mm, f/3.8. Published 28 mm corrected image circle.' },
+    'samyang-135': { aperture:67.5, focalLength:135, obstructionDiameter:0 }
+  };
 
   function populatePresets() {
     const blank = document.createElement('option');
@@ -361,12 +450,11 @@
     syncDynamicLimits();
     if (markCustom) presetEl.value = '';
     calculateAndRender();
-  runTnsRegressionChecks();
   }
 
   function getParams() {
     const p = {};
-    for (const k of ids) p[k] = Number(el[k].value);
+    for (const k of ids) p[k] = el[k].value.trim() === '' ? NaN : Number(el[k].value);
     p.loadedCurveData = loadedCurveData;
     return p;
   }
@@ -419,7 +507,7 @@
   }
 
   function parametricTransmissionAt(wavelength, shiftedCenter, p) {
-    const stddev=(p.fwhm-p.flatTop)/2.355;
+    const stddev=(p.fwhm-p.flatTop)/(2*Math.sqrt(2*Math.log(2)));
     const normalMax=normalPdf(p.bandpassCenter,p.bandpassCenter,stddev);
     let ft;
     if (wavelength < shiftedCenter-p.flatTop/2) {
@@ -433,7 +521,7 @@
   }
 
   // Compatibility implementation of Touch-N-Stars calculateTransmissionContinuous().
-  function calculateTransmissionContinuous(p, wavelengthOverride=null) {
+  function calculateTransmissionContinuous(p, wavelengthOverride=null, integrationSteps=1000) {
     const obstructionRatio = p.aperture > 0 ? p.obstructionDiameter / p.aperture : 0;
     const clampedObstructionRatio = Math.max(0, Math.min(obstructionRatio, 0.99));
     const interp = p.loadedCurveData && p.loadedCurveData.length ? makeInterpolator(p.loadedCurveData) : null;
@@ -453,7 +541,7 @@
       }
       return 2*Math.PI*r*transmission;
     }
-    const weighted=simpsonsRule(integrand,rInner,rOuter,1000);
+    const weighted=simpsonsRule(integrand,rInner,rOuter,integrationSteps);
     const totalArea=Math.PI*(rOuter*rOuter-rInner*rInner);
     return totalArea>0 ? weighted/totalArea : 0;
   }
@@ -501,6 +589,248 @@
 
   function fmt(n, d=1) { return Number.isFinite(n) ? n.toFixed(d) : '—'; }
 
+  function updateOpticalNote() {
+    const choice=opticalPresets[opticalPresetEl.value];
+    const node=document.getElementById('opticalNote');
+    if (opticalPresetEl.value==='samyang-135') {
+      const stop=Number(samyangStopEl.value==='custom' ? samyangCustomStopEl.value : samyangStopEl.value);
+      node.textContent=Number.isFinite(stop) && stop>=2 && stop<=22 &&
+        (samyangStopEl.value!=='custom' || samyangCustomStopEl.value.trim()!=='')
+        ? `Samyang 135 mm at f/${stop}: modeled entrance pupil ${fmt(135/stop,2)} mm (135 ÷ ${stop}). This is not its 77 mm front filter thread; real exit-pupil geometry may differ.`
+        : 'Enter a custom Samyang f-number from 2 to 22. Samyang publishes the range but not a complete numeric list of intermediate click positions.';
+      return;
+    }
+    node.textContent=choice?.note || 'Choose a preset or enter your own optical parameters. The 0.95× PRCC is for the CarbonStar, not the Samyang lens.';
+  }
+
+  function updateSamyangControls() {
+    const active=opticalPresetEl.value==='samyang-135';
+    document.getElementById('samyangStopRow').style.display=active?'grid':'none';
+    document.getElementById('samyangCustomRow').style.display=active && samyangStopEl.value==='custom'?'grid':'none';
+  }
+
+  function applySamyangStop() {
+    if (opticalPresetEl.value!=='samyang-135') return;
+    updateSamyangControls();
+    const raw=samyangStopEl.value==='custom' ? samyangCustomStopEl.value.trim() : samyangStopEl.value;
+    const stop=Number(raw);
+    el.aperture.value=raw!=='' && Number.isFinite(stop) && stop>=2 && stop<=22
+      ? (135/stop).toFixed(6) : '';
+    el.focalLength.value=135;
+    el.obstructionDiameter.value=0;
+    updateOpticalNote();
+    calculateAndRender();
+  }
+
+  function updateAntliaComparison() {
+    const aperture=Number(el.aperture.value);
+    const focalLength=Number(el.focalLength.value);
+    const obstruction=el.obstructionDiameter.value.trim()==='' ? NaN : Number(el.obstructionDiameter.value);
+    const valid=el.aperture.value.trim()!=='' && el.focalLength.value.trim()!=='' &&
+      Number.isFinite(aperture) && aperture>0 && Number.isFinite(focalLength) && focalLength>0 &&
+      Number.isFinite(obstruction) && obstruction>=0 && obstruction<aperture;
+    const standard=document.getElementById('standardEstimate');
+    const highspeed=document.getElementById('highspeedEstimate');
+    const standardRetention=document.getElementById('standardRetention');
+    const highspeedRetention=document.getElementById('highspeedRetention');
+    const standardSensitivity=document.getElementById('standardSensitivity');
+    const highspeedSensitivity=document.getElementById('highspeedSensitivity');
+    const guidance=document.getElementById('buyingGuidance');
+    if (!valid) {
+      [standard,highspeed,standardRetention,highspeedRetention,standardSensitivity,highspeedSensitivity]
+        .forEach(node=>{node.textContent='—';});
+      guidance.textContent='Select an optical setup or enter valid aperture, focal length, and obstruction to compare modeled Hα line retention.';
+      return;
+    }
+    const base={aperture,focalLength,obstructionDiameter:obstruction,effectiveRefractiveIndex:1.8,
+      fwhm:3,flatTop:1,targetWavelength:656.3,loadedCurveData:null};
+    const relative=(center,nEff=1.8,flatTop=1)=>calculateTransmissionContinuous({
+      ...base,bandpassCenter:center,effectiveRefractiveIndex:nEff,flatTop,peakTransmittance:1
+    });
+    const standardFraction=relative(656.3);
+    const highspeedFraction=relative(657.5);
+    standardRetention.textContent=`${fmt(100*standardFraction,1)}%`;
+    highspeedRetention.textContent=`${fmt(100*highspeedFraction,1)}%`;
+    standard.textContent=`${fmt(88*standardFraction,1)}% using 88% spec level`;
+    highspeed.textContent=`${fmt(90*highspeedFraction,1)}% using 90% listed peak`;
+    const sweep=(center)=>{
+      const values=[];
+      for (const nEff of [1.6,1.8,2.2]) for (const flatTop of [0.5,1,2])
+        values.push(100*relative(center,nEff,flatTop));
+      return `${fmt(Math.min(...values),1)}–${fmt(Math.max(...values),1)}% of own peak`;
+    };
+    standardSensitivity.textContent=sweep(656.3);
+    highspeedSensitivity.textContent=sweep(657.5);
+    const ratio=focalLength/aperture;
+    const favored=Math.abs(standardFraction-highspeedFraction)<0.001 ? 'about equal' :
+      standardFraction>highspeedFraction ? 'standard' : 'Highspeed';
+    const comparison=favored==='about equal' ? 'roughly equal in this model' : `${favored} higher in this model`;
+    let note=`At f/${fmt(ratio)}, the shared-shape model predicts ${fmt(100*standardFraction,1)}% standard vs ${fmt(100*highspeedFraction,1)}% Highspeed Hα peak retention (${comparison}). This is not a measured throughput ranking: each filter’s real angle-dependent spectral curve and coating index are needed for that.`;
+    if (ratio>3.6 && favored==='Highspeed') note+=' Notably, this conflicts with Antlia’s recommendation of standard Pro for slower than f/3.6; published specifications alone cannot settle that discrepancy.';
+    if (ratio<2.6) note+=' At this speed, both 3 nm curves may lose substantial Hα signal; Antlia does not rate its Highspeed 3 nm below f/2.6.';
+    guidance.textContent=note;
+  }
+
+  const shoLines = [
+    {key:'Hα', presetLabel:'Hα', wavelengths:[656.3]},
+    {key:'OIII', presetLabel:'OIII', wavelengths:[500.7]},
+    {key:'SII', presetLabel:'SII', wavelengths:[671.6,673.1]}
+  ];
+  // Nominal half-stop positions of the still lens; the manufacturer only specifies f/2–f/22.
+  const samyangStops = [2,2.4,2.8,3.3,4,4.8,5.6,6.7,8,9.5,11,13,16,22];
+  const shoPresets = Object.fromEntries(shoLines.map(line => [line.key, Object.fromEntries(
+    ['standard','Highspeed'].map(variant => [variant, presets.find(p =>
+      p.group === (variant==='standard' ? 'Antlia 3nm Pro' : 'Antlia 3nm Pro Highspeed') &&
+      p.name.endsWith(`[${line.presetLabel}]`))?.values])
+  )]));
+
+  function shoRetention(optics, line, variant, nEff=1.8, flatTop=1, siiFirstWeight=0.5) {
+    const spec=shoPresets[line.key][variant];
+    const weights=line.wavelengths.length===2 ? [siiFirstWeight,1-siiFirstWeight] : [1];
+    return line.wavelengths.reduce((sum,wavelength,i) => sum+weights[i]*calculateTransmissionContinuous({
+      ...spec,...optics,peakTransmittance:1,effectiveRefractiveIndex:nEff,flatTop,
+      targetWavelength:wavelength,loadedCurveData:null
+    },null,240),0);
+  }
+
+  function preferredVariant(optics,line,nEff=1.8,flatTop=1,siiFirstWeight=0.5) {
+    const standard=shoRetention(optics,line,'standard',nEff,flatTop,siiFirstWeight);
+    const highspeed=shoRetention(optics,line,'Highspeed',nEff,flatTop,siiFirstWeight);
+    return {standard,highspeed,variant:highspeed>standard ? 'Highspeed' : 'standard',
+      retention:Math.max(standard,highspeed)};
+  }
+
+  function carbonstarStability(optics,line,baselineVariant) {
+    const variants=new Set();
+    for (const nEff of [1.6,1.8,2.2]) for (const flatTop of [0.5,1,2]) {
+      for (const weight of line.wavelengths.length===2 ? [0,0.5,1] : [1])
+        variants.add(preferredVariant(optics,line,nEff,flatTop,weight).variant);
+    }
+    return variants.size===1 && variants.has(baselineVariant);
+  }
+
+  function bestSamyangChoice(line,nEff=1.8,flatTop=1,siiFirstWeight=0.5) {
+    let best=null;
+    for (const stop of samyangStops) {
+      const optics={aperture:135/stop,focalLength:135,obstructionDiameter:0};
+      for (const variant of ['standard','Highspeed']) {
+        const retention=shoRetention(optics,line,variant,nEff,flatTop,siiFirstWeight);
+        const rate=retention/(stop*stop);
+        if (!best || rate>best.rate) best={stop,variant,retention,rate};
+      }
+    }
+    return best;
+  }
+
+  function samyangStability(line,nominal) {
+    const choices=new Set();
+    for (const nEff of [1.6,1.8,2.2]) for (const flatTop of [0.5,1,2]) {
+      for (const weight of line.wavelengths.length===2 ? [0,0.5,1] : [1]) {
+        const result=bestSamyangChoice(line,nEff,flatTop,weight);
+        choices.add(`${result.stop}|${result.variant}`);
+      }
+    }
+    return choices.size===1 && choices.has(`${nominal.stop}|${nominal.variant}`);
+  }
+
+  function renderShoRecommendations() {
+    const carbonstarRows=[];
+    const sensitiveCarbonstarLines=new Set();
+    for (const [key,label] of [['carbonstar-native','Native f/4'],['carbonstar-prcc','0.95× reducer f/3.8']]) {
+      const optics=opticalPresets[key];
+      for (const line of shoLines) {
+        const result=preferredVariant(optics,line);
+        const consistent=carbonstarStability(optics,line,result.variant);
+        if (!consistent) sensitiveCarbonstarLines.add(line.key);
+        carbonstarRows.push(`<tr><td>${label}</td><td>${line.key}</td><td>${fmt(result.standard*100,1)}%</td><td>${fmt(result.highspeed*100,1)}%</td><td><strong>${result.variant==='standard'?'Standard':'Highspeed'}</strong></td></tr>`);
+      }
+    }
+    document.getElementById('carbonstarRecommendations').innerHTML=carbonstarRows.join('');
+    document.getElementById('carbonstarCaution').textContent=
+      `These are baseline model leads, not measured winners. ${sensitiveCarbonstarLines.size ?
+        `The lead changes under tested model assumptions for ${[...sensitiveCarbonstarLines].join(' and ')}. ` : ''}`+
+      'Both CarbonStar setups are slower than Antlia’s stated Highspeed range.';
+
+    const perStop=samyangStops.map(stop => {
+      const optics={aperture:135/stop,focalLength:135,obstructionDiameter:0};
+      const results=shoLines.map(line => {
+        const options=['standard','Highspeed'].map(variant => ({
+          line,variant,retention:shoRetention(optics,line,variant)
+        }));
+        return options.reduce((best,current)=>current.retention>best.retention?current:best);
+      });
+      return {stop,results,geometricMean:Math.exp(results.reduce((sum,r) =>
+        sum+Math.log(Math.max(r.retention/(stop*stop),Number.MIN_VALUE)),0)/results.length)};
+    });
+    const allRows=[];
+    for (const stop of samyangStops) {
+      const optics={aperture:135/stop,focalLength:135,obstructionDiameter:0};
+      for (const line of shoLines) {
+        const standard=shoRetention(optics,line,'standard');
+        const highspeed=shoRetention(optics,line,'Highspeed');
+        allRows.push(`<tr><td>${line.key}</td><td>f/${stop}</td><td>${fmt(standard*100,1)}%</td><td>${fmt(highspeed*100,1)}%</td><td><strong>${highspeed>standard?'Highspeed':'Standard'}</strong></td></tr>`);
+      }
+    }
+    document.getElementById('samyangAllCombinations').innerHTML=allRows.join('');
+    const samyangRows=[];
+    const sensitiveSamyangLines=[];
+    for (const line of shoLines) {
+      const fastest=bestSamyangChoice(line);
+      const stable=samyangStability(line,fastest);
+      if (!stable) sensitiveSamyangLines.push(line.key);
+      const optics={aperture:135/fastest.stop,focalLength:135,obstructionDiameter:0};
+      const result=preferredVariant(optics,line);
+      samyangRows.push(`<tr><td>${line.key}</td><td>f/${fastest.stop}</td><td>${fmt(result.standard*100,1)}%</td><td>${fmt(result.highspeed*100,1)}%</td><td><strong>${result.variant==='standard'?'Standard':'Highspeed'}</strong></td></tr>`);
+    }
+    document.getElementById('samyangRecommendations').innerHTML=samyangRows.join('');
+    const common=perStop.reduce((best,current) => current.geometricMean>best.geometricMean?current:best);
+    const outsideText=common.stop<2.6 && common.results.some(r=>r.variant==='Highspeed')
+      ? ' Antlia does not rate its 3 nm Highspeed filters below f/2.6; this result extrapolates beyond its stated range.'
+      : '';
+    document.getElementById('samyangShoRecommendation').textContent=
+      `Across all listed f-stops and both filter versions, the baseline equal-weight SHO photon-rate model selects f/${common.stop}: `+
+      common.results.map(r=>`${r.line.key} ${r.variant}`).join(' · ')+
+      `.${outsideText}${sensitiveSamyangLines.length ? ` The selected setting changes in tested scenarios for ${sensitiveSamyangLines.join(' and ')}.` : ''} This is a model-conditioned light-collection choice, not a measured best-image or SNR guarantee.`;
+  }
+
+  function updateSizeGuidance() {
+    const node=document.getElementById('sizeGuidance');
+    const aperture=Number(el.aperture.value), focalLength=Number(el.focalLength.value);
+    const diagonal=Number(el.sensorDiagonal.value), distance=Number(el.filterDistance.value);
+    if (el.aperture.value.trim()==='' || el.focalLength.value.trim()==='' ||
+        !(aperture>0 && focalLength>0)) {
+      node.textContent='Select an optical setup or enter aperture and focal length before checking filter clearance.';
+      return;
+    }
+    if (el.sensorDiagonal.value.trim()==='' || el.filterDistance.value.trim()==='') {
+      node.textContent='Enter sensor diagonal and filter distance to estimate the minimum clear opening for an image-space cone.';
+      return;
+    }
+    if (!(diagonal>0 && distance>=0)) {
+      node.textContent='Sensor diagonal must be positive and filter distance cannot be negative.';
+      return;
+    }
+    const ratio=focalLength/aperture;
+    const required=diagonal+distance/ratio;
+    if (required>36) {
+      node.textContent=`Approximate opening needed: ${fmt(required,1)} mm. That exceeds even the 36 mm physical diameter, so these unmounted 36 mm filters cannot clear the whole sensor under this geometry.`;
+      return;
+    }
+    const clearText=el.clearAperture.value.trim();
+    if (clearText==='') {
+      node.textContent=`Approximate opening needed: ${fmt(required,1)} mm. This is below 36 mm outer diameter, but clearance is unverified until you enter the actual usable aperture and check the holder/chief-ray geometry.`;
+      return;
+    }
+    const clear=Number(clearText);
+    if (!(clear>0 && clear<=36)) {
+      node.textContent='Actual clear aperture must be greater than 0 and no larger than the 36 mm outer diameter.';
+      return;
+    }
+    node.textContent=clear>=required
+      ? `Approximate opening needed: ${fmt(required,1)} mm; entered clear aperture: ${fmt(clear,1)} mm. It passes this basic cone check, but off-axis rays and the holder may still vignette.`
+      : `Approximate opening needed: ${fmt(required,1)} mm; entered clear aperture: ${fmt(clear,1)} mm. This geometry predicts corner vignetting.`;
+  }
+
   let drawRaf=0;
   function renderBlankState() {
     const err=document.getElementById('errors');
@@ -520,7 +850,9 @@
   }
 
   function calculateAndRender() {
-    if (ids.every(id => el[id].value === '')) {
+    updateAntliaComparison();
+    updateSizeGuidance();
+    if (ids.some(id => el[id].value.trim() === '')) {
       renderBlankState();
       return;
     }
@@ -641,13 +973,49 @@
       const max=input.max!==''?Number(input.max):Infinity;
       v=Math.max(min,Math.min(max,v));
       input.value=v.toFixed(decimalsFor(input));
-      presetEl.value=''; calculateAndRender();
+      if (ids.includes(btn.dataset.step)) {
+        if (['aperture','focalLength','obstructionDiameter'].includes(btn.dataset.step)) { opticalPresetEl.value=''; updateSamyangControls(); updateOpticalNote(); }
+        else presetEl.value='';
+      }
+      if (btn.dataset.step==='sensorDiagonal') sensorPresetEl.value='';
+      calculateAndRender();
     });
   });
 
   ids.forEach(k => {
-    el[k].addEventListener('input', () => { presetEl.value=''; calculateAndRender(); });
+    el[k].addEventListener('input', () => {
+      if (['aperture','focalLength','obstructionDiameter'].includes(k)) { opticalPresetEl.value=''; updateSamyangControls(); updateOpticalNote(); }
+      else presetEl.value='';
+      calculateAndRender();
+    });
     el[k].addEventListener('change', calculateAndRender);
+  });
+
+  sizeIds.forEach(k => {
+    el[k].addEventListener('input', () => { if(k==='sensorDiagonal') sensorPresetEl.value=''; updateSizeGuidance(); });
+    el[k].addEventListener('change', updateSizeGuidance);
+  });
+  sensorPresetEl.addEventListener('change', () => {
+    if (Object.hasOwn(sensorPresets,sensorPresetEl.value)) el.sensorDiagonal.value=sensorPresets[sensorPresetEl.value];
+    updateSizeGuidance();
+  });
+  samyangStopEl.addEventListener('change',applySamyangStop);
+  samyangCustomStopEl.addEventListener('input',applySamyangStop);
+  samyangCustomStopEl.addEventListener('change',applySamyangStop);
+  opticalPresetEl.addEventListener('change', () => {
+    const choice=opticalPresets[opticalPresetEl.value];
+    if (choice) {
+      el.aperture.value=choice.aperture;
+      el.focalLength.value=choice.focalLength;
+      el.obstructionDiameter.value=choice.obstructionDiameter;
+    }
+    if (opticalPresetEl.value==='samyang-135') {
+      samyangStopEl.value='2';
+      samyangCustomStopEl.value='';
+    }
+    updateSamyangControls();
+    updateOpticalNote();
+    calculateAndRender();
   });
 
   presetEl.addEventListener('change', () => {
@@ -655,7 +1023,12 @@
     const p=presets[Number(presetEl.value)];
     if(!p) return;
     // Filter presets intentionally do not overwrite telescope aperture,
-    // focal length, or obstruction.
+    // focal length, or obstruction. A newly selected preset must not reuse
+    // a previously uploaded curve in place of its parametric bandpass.
+    loadedCurveData=null;
+    fileInput.value='';
+    document.getElementById('fileName').textContent='No file chosen';
+    document.getElementById('curveMode').classList.remove('on');
     setValues(p.values,false);
   });
   document.getElementById('clearPreset').addEventListener('click',()=>{presetEl.value='';});
@@ -663,8 +1036,11 @@
   document.getElementById('reset').addEventListener('click',()=>{
     loadedCurveData=null; fileInput.value='';document.getElementById('fileName').textContent='No file chosen';document.getElementById('curveMode').classList.remove('on');
     ids.forEach(id => { el[id].value=''; });
+    sizeIds.forEach(id => { el[id].value=''; });
     presetEl.value='';
-    renderBlankState();
+    opticalPresetEl.value=''; samyangStopEl.value='2'; samyangCustomStopEl.value='';
+    sensorPresetEl.value=''; updateSamyangControls(); updateOpticalNote();
+    calculateAndRender();
   });
 
   document.getElementById('clearCurve').addEventListener('click',()=>{
@@ -680,13 +1056,19 @@
         const line=raw.trim(); if(!line || line.startsWith('#') || line.startsWith('//')) continue;
         const parts=line.split(/[;,\t ]+/).filter(Boolean);
         if(parts.length<2)continue;
-        const wavelength=Number(parts[0]); let transmission=Number(parts[1]);
+        const wavelength=Number(parts[0]); const transmission=Number(parts[1]);
         if(!Number.isFinite(wavelength)||!Number.isFinite(transmission))continue;
-        if(transmission>1.5)transmission/=100;
-        if(transmission<0)transmission=0;
         rows.push({wavelength,transmission});
       }
       if(rows.length<3) throw new Error('Need at least 3 numeric wavelength/transmission rows.');
+      // Detect percent units for the whole file, not row by row: a 1%
+      // shoulder point in a 0–100% curve must become 0.01, not 1.0.
+      const percentUnits=rows.some(row=>row.transmission>1);
+      for (const row of rows) {
+        if (row.transmission<0 || row.transmission>(percentUnits?100:1))
+          throw new Error('Curve transmission must be within 0–1 or 0–100%.');
+        if (percentUnits) row.transmission/=100;
+      }
       rows.sort((a,b)=>a.wavelength-b.wavelength);
       loadedCurveData=rows;
       document.getElementById('fileName').textContent=file.name;
@@ -728,11 +1110,15 @@
   });
 
   populatePresets();
+  renderShoRecommendations();
+  updateSamyangControls();
   renderBlankState();
+  updateAntliaComparison();
+  updateSizeGuidance();
   runTnsRegressionChecks();
 
   // Expose a tiny test hook in DevTools.
-  window.NarrowbandCalculator={calculateTransmissionContinuous,validate,getParams,presets};
+  window.NarrowbandCalculator={calculateTransmissionContinuous,validate,getParams,presets,opticalPresets,sensorPresets,updateSizeGuidance,shoRetention,preferredVariant,samyangStops};
 })();
 </script>
 </body>
