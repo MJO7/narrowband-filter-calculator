@@ -61,6 +61,26 @@ test('CarbonStar presets use published dimensions and reducer factor', () => {
   assert.equal(element('highspeedRetention').textContent,'99.0%');
 });
 
+test('APM Barlow and EdgeHD 9.25 presets use published effective focal lengths and obstructions', () => {
+  const {element,calculator}=loadCalculator();
+  const cases=[
+    ['carbonstar-apm-barlow',150,900,62,/f\/6/],
+    ['edgehd-925-native',234.95,2350,85,/f\/10/],
+    ['edgehd-925-reducer',234.95,1645,85,/f\/7/],
+  ];
+  const html=fs.readFileSync(path.join(__dirname,'..','narrowband-filter-calculator.html'),'utf8');
+  for (const [key,aperture,focalLength,obstruction,note] of cases) {
+    assert.match(html,new RegExp(`<option value="${key}">`));
+    element('opticalPreset').value=key; element('opticalPreset').fire('change');
+    assert.equal(Number(element('aperture').value),aperture);
+    assert.equal(Number(element('focalLength').value),focalLength);
+    assert.equal(Number(element('obstructionDiameter').value),obstruction);
+    assert.match(element('opticalNote').textContent,note);
+    assert.ok(Math.abs(calculator.getParams().focalLength/focalLength-1)<1e-10);
+  }
+  assert.match(calculator.opticalPresets['carbonstar-apm-barlow'].note,/pupil geometry is not modeled/);
+});
+
 test('Samyang f/2 is not marked supported for either Antlia 3nm filter', () => {
   const {element}=loadCalculator();
   element('opticalPreset').value='samyang-135'; element('opticalPreset').fire('change');

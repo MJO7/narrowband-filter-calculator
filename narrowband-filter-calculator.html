@@ -199,10 +199,13 @@
                 <option value="">Select an optical setup…</option>
                 <option value="carbonstar-native">Apertura CarbonStar 150 — 600 mm, f/4</option>
                 <option value="carbonstar-prcc">Apertura CarbonStar 150 + 0.95× PRCC — 570 mm, f/3.8</option>
+                <option value="carbonstar-apm-barlow">Apertura CarbonStar 150 + APM 1.5× coma-correcting Barlow — 900 mm, f/6</option>
+                <option value="edgehd-925-native">Celestron EdgeHD 9.25 — 2350 mm, f/10</option>
+                <option value="edgehd-925-reducer">Celestron EdgeHD 9.25 + 0.7× reducer — 1645 mm, f/7</option>
                 <option value="samyang-135">Samyang 135 mm f/2 ED UMC — adjustable f-stop</option>
               </select>
-              <p class="small-note" id="opticalNote">Choose a preset or enter your own optical parameters. The 0.95× PRCC is for the CarbonStar, not the Samyang lens.</p>
-              <p class="small-note">Preset specifications: <a href="https://www.highpointscientific.com/apertura-carbonstar-150-imaging-newtonian-with-0-95x-coma-corrector" target="_blank" rel="noopener noreferrer">Apertura CarbonStar + PRCC</a> · <a href="https://www.lksamyang.com/ch/product/product-view.php?seq=324" target="_blank" rel="noopener noreferrer">Samyang 135 mm f/2</a>.</p>
+              <p class="small-note" id="opticalNote">Choose a preset or enter your own optical parameters. Accessories are paired with the telescope they are listed beside.</p>
+              <p class="small-note">Preset specifications: <a href="https://www.highpointscientific.com/apertura-carbonstar-150-imaging-newtonian-with-0-95x-coma-corrector" target="_blank" rel="noopener noreferrer">Apertura CarbonStar + PRCC</a> · <a href="https://www.apm-telescopes.net/en/apm-2-inch-coma-correcting-telecentric-15x-barlow" target="_blank" rel="noopener noreferrer">APM 1.5× Barlow</a> · <a href="https://www.celestron.com/products/edgehd-925-optical-tube-assembly-cge-dovetail" target="_blank" rel="noopener noreferrer">EdgeHD 9.25</a> · <a href="https://www.celestron.com/products/reducer-lens-7x-edgehd-925" target="_blank" rel="noopener noreferrer">EdgeHD 0.7× reducer</a> · <a href="https://www.lksamyang.com/ch/product/product-view.php?seq=324" target="_blank" rel="noopener noreferrer">Samyang 135 mm f/2</a>.</p>
             </div>
             <div id="samyangStopRow" class="row" style="display:none">
               <div class="label-wrap"><label for="samyangStop">Samyang f-stop</label><span class="subnote">Samyang specifies f/2–f/22. <a href="https://www.cameralabs.com/samyang-rokinon-135mm-f2-ed-umc-review/2/" target="_blank" rel="noopener noreferrer">Hands-on ring checks</a> report half-stop clicks through f/16, then f/22; intermediate values below are nominal, not a manufacturer-published click list. Use Custom for between-click settings or a different lens version.</span></div>
@@ -419,6 +422,12 @@
       note:'CarbonStar 150: 150 mm primary, 600 mm focal length, 62 mm published secondary obstruction. No reducer.' },
     'carbonstar-prcc': { aperture:150, focalLength:570, obstructionDiameter:62,
       note:'CarbonStar 150 + Apertura 0.95× Photographic Reducing Coma Corrector: 600 × 0.95 = 570 mm, f/3.8. Published 28 mm corrected image circle.' },
+    'carbonstar-apm-barlow': { aperture:150, focalLength:900, obstructionDiameter:62,
+      note:'CarbonStar 150 + APM 2-inch telecentric 1.5× coma-correcting Barlow: 600 × 1.5 = 900 mm, f/6. APM lists a 30 mm fully illuminated field. The transmission model uses the nominal f/6 cone; the Barlow’s detailed pupil geometry is not modeled.' },
+    'edgehd-925-native': { aperture:234.95, focalLength:2350, obstructionDiameter:85,
+      note:'Celestron EdgeHD 9.25: published 234.95 mm aperture, 2350 mm focal length (f/10 nominal), and 85 mm secondary obstruction. Actual focal length can vary with focus/back spacing.' },
+    'edgehd-925-reducer': { aperture:234.95, focalLength:1645, obstructionDiameter:85,
+      note:'Celestron EdgeHD 9.25 + its dedicated 0.7× reducer: 2350 × 0.7 = 1645 mm (f/7 nominal). The 85 mm secondary obstruction is unchanged. Actual focal length depends on optical spacing and focus.' },
     'samyang-135': { aperture:67.5, focalLength:135, obstructionDiameter:0 }
   };
 
@@ -600,7 +609,7 @@
         : 'Enter a custom Samyang f-number from 2 to 22. Samyang publishes the range but not a complete numeric list of intermediate click positions.';
       return;
     }
-    node.textContent=choice?.note || 'Choose a preset or enter your own optical parameters. The 0.95× PRCC is for the CarbonStar, not the Samyang lens.';
+    node.textContent=choice?.note || 'Choose a preset or enter your own optical parameters. Accessories are paired with the telescope they are listed beside.';
   }
 
   function updateSamyangControls() {

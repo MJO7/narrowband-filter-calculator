@@ -1,6 +1,6 @@
 # Narrowband filter calculator
 
-A browser-based calculator for comparing modeled Hα, OIII, and SII transmission through Antlia Standard and Highspeed 3 nm filters. It includes the CarbonStar 150 at f/4 and f/3.8 with the 0.95× PRCC, plus all listed Samyang 135 mm f/2 aperture-ring settings. The repository also includes an astronomy FOV calculator.
+A browser-based calculator for comparing modeled Hα, OIII, and SII transmission through Antlia Standard and Highspeed 3 nm filters. Optical presets include the CarbonStar 150 at f/4, with its 0.95× PRCC at f/3.8, and with the APM 1.5× coma-correcting Barlow at f/6; the EdgeHD 9.25 at native f/10 or with its dedicated 0.7× reducer at f/7; and all listed Samyang 135 mm f/2 aperture-ring settings. The repository also includes an astronomy FOV calculator.
 
 Open `narrowband-filter-calculator.html` locally or use the [published calculator](https://mjo7.github.io/narrowband-filter-calculator/).
 
