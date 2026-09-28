@@ -24,9 +24,7 @@ jobs:
       - name: Validate and prepare static pages
         run: |
           node scripts/build-site.mjs
-          mv dist/index.html dist/all-calculators.html
-          cp dist/narrowband-filter-calculator.html dist/index.html
-          sed -i 's/href="index.html"/href="all-calculators.html"/g' dist/index.html dist/narrowband-filter-calculator.html dist/fov-calculator.html
+          cp dist/index.html dist/all-calculators.html
       - name: Upload static pages
         uses: actions/upload-pages-artifact@v4
         with:
